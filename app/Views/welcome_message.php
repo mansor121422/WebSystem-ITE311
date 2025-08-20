@@ -292,8 +292,6 @@
 
 </div>
 
-<!-- FOOTER: DEBUG INFO + COPYRIGHTS -->
-
 <footer>
     <div class="environment">
 
