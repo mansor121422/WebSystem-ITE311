@@ -30,7 +30,7 @@
   <!-- Hero Section -->
   <div class="container-fluid p-5 text-center" style="background-color: #a5d6a7;">
     <img src="https://via.placeholder.com/900x200?text=Eco+Banner" class="img-fluid mb-3" alt="Banner">
-    <h1>Welcome to CodeIgniter</h1>
+  <h1>Welcome to CodeIgniter</h1>
     <p>Your Partner in Sustainable Living</p>
     <p>We help you live eco-friendly!</p>
     <a href="#products" class="btn btn-primary">Shop Now</a>
