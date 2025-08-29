@@ -22,13 +22,13 @@ class Auth extends Controller
                 $data = [
                     'name' => $this->request->getPost('name'),
                     'email' => $this->request->getPost('email'),
-                    'password' => password_hash($this->request->getPost('password'), PASSWORD_DEFAULT),
-                    'role' => 'user',
+                    'password_hash' => password_hash($this->request->getPost('password'), PASSWORD_DEFAULT),
+                    'role' => 'student',
                 ];
                 // Ensure user is saved to users table
                 if ($model->insert($data)) {
                     $session->setFlashdata('success', 'Registration successful. Please login.');
-                    return redirect()->to('/auth/login');
+                    return redirect()->to('/login');
                 } else {
                     $session->setFlashdata('error', 'Registration failed. Please try again.');
                 }
@@ -53,7 +53,7 @@ class Auth extends Controller
                 $email = $this->request->getPost('email');
                 $password = $this->request->getPost('password');
                 $user = $model->where('email', $email)->first();
-                if ($user && password_verify($password, $user['password'])) {
+                if ($user && password_verify($password, $user['password_hash'])) {
                     $session->set([
                         'user_id' => $user['id'],
                         'user_name' => $user['name'],
@@ -76,14 +76,14 @@ class Auth extends Controller
     public function logout()
     {
         session()->destroy();
-        return redirect()->to('/auth/login');
+        return redirect()->to('/login');
     }
 
     public function dashboard()
     {
         $session = session();
         if (!$session->get('isLoggedIn')) {
-            return redirect()->to('/auth/login');
+            return redirect()->to('/login');
         }
         echo view('dashboard');
     }

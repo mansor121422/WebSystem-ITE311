@@ -23,7 +23,7 @@
                     <h5>Hello, <?= session('user_name') ?>!</h5>
                     <p>Your email: <?= session('user_email') ?></p>
                     <p>Your role: <?= session('role') ?></p>
-                    <a href="<?= site_url('auth/logout') ?>" class="btn btn-danger mt-3">Logout</a>
+                    <a href="<?= site_url('logout') ?>" class="btn btn-danger mt-3">Logout</a>
                 </div>
             </div>
         </div>
