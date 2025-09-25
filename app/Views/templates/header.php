@@ -10,7 +10,7 @@ $currentPage = $page ?? '';
 <nav class="navbar navbar-logged-in">
     <div class="container">
         <a class="navbar-brand" href="<?= base_url('dashboard') ?>">
-            <strong>LMS</strong>
+            <strong>LMS System</strong>
         </a>
         
         <ul class="navbar-nav navbar-nav-center">
