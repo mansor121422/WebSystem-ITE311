@@ -1,0 +1,124 @@
+ERROR - 2025-09-07 14:04:20 --> Error connecting to the database: mysqli_sql_exception: Unknown database 'lms_alalawi' in C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php:201
+Stack trace:
+#0 C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php(201): mysqli->real_connect('localhost', 'root', Object(SensitiveParameterValue), 'lms_alalawi', 3306, '', 0)
+#1 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(419): CodeIgniter\Database\MySQLi\Connection->connect(false)
+#2 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(614): CodeIgniter\Database\BaseConnection->initialize()
+#3 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(1525): CodeIgniter\Database\BaseConnection->query('SHOW TABLES FRO...')
+#4 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(1545): CodeIgniter\Database\BaseConnection->listTables()
+#5 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(768): CodeIgniter\Database\BaseConnection->tableExists('migrations')
+#6 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(704): CodeIgniter\Database\MigrationRunner->ensureTable()
+#7 C:\xampp\htdocs\ITE311-MALIK\system\Commands\Database\MigrateRollback.php(86): CodeIgniter\Database\MigrationRunner->getLastBatch()
+#8 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Commands.php(74): CodeIgniter\Commands\Database\MigrateRollback->run(Array)
+#9 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Console.php(47): CodeIgniter\CLI\Commands->run('migrate:rollbac...', Array)
+#10 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(388): CodeIgniter\CLI\Console->run()
+#11 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(133): CodeIgniter\Boot::runCommand(Object(CodeIgniter\CLI\Console))
+#12 C:\xampp\htdocs\ITE311-MALIK\spark(87): CodeIgniter\Boot::bootSpark(Object(Config\Paths))
+#13 {main}
+
+Next CodeIgniter\Database\Exceptions\DatabaseException: Unknown database 'lms_alalawi' in C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php:246
+Stack trace:
+#0 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(419): CodeIgniter\Database\MySQLi\Connection->connect(false)
+#1 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(614): CodeIgniter\Database\BaseConnection->initialize()
+#2 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(1525): CodeIgniter\Database\BaseConnection->query('SHOW TABLES FRO...')
+#3 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(1545): CodeIgniter\Database\BaseConnection->listTables()
+#4 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(768): CodeIgniter\Database\BaseConnection->tableExists('migrations')
+#5 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(704): CodeIgniter\Database\MigrationRunner->ensureTable()
+#6 C:\xampp\htdocs\ITE311-MALIK\system\Commands\Database\MigrateRollback.php(86): CodeIgniter\Database\MigrationRunner->getLastBatch()
+#7 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Commands.php(74): CodeIgniter\Commands\Database\MigrateRollback->run(Array)
+#8 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Console.php(47): CodeIgniter\CLI\Commands->run('migrate:rollbac...', Array)
+#9 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(388): CodeIgniter\CLI\Console->run()
+#10 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(133): CodeIgniter\Boot::runCommand(Object(CodeIgniter\CLI\Console))
+#11 C:\xampp\htdocs\ITE311-MALIK\spark(87): CodeIgniter\Boot::bootSpark(Object(Config\Paths))
+#12 {main}
+ERROR - 2025-09-07 14:05:11 --> mysqli_sql_exception: Table '`lms_malik`.`migrations`' already exists in C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php:327
+Stack trace:
+#0 C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php(327): mysqli->query('CREATE TABLE `m...', 0)
+#1 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(729): CodeIgniter\Database\MySQLi\Connection->execute('CREATE TABLE `m...')
+#2 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(646): CodeIgniter\Database\BaseConnection->simpleQuery('CREATE TABLE `m...')
+#3 C:\xampp\htdocs\ITE311-MALIK\system\Database\Forge.php(570): CodeIgniter\Database\BaseConnection->query('CREATE TABLE `m...')
+#4 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(815): CodeIgniter\Database\Forge->createTable('migrations', true)
+#5 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(704): CodeIgniter\Database\MigrationRunner->ensureTable()
+#6 C:\xampp\htdocs\ITE311-MALIK\system\Commands\Database\MigrateRollback.php(86): CodeIgniter\Database\MigrationRunner->getLastBatch()
+#7 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Commands.php(74): CodeIgniter\Commands\Database\MigrateRollback->run(Array)
+#8 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Console.php(47): CodeIgniter\CLI\Commands->run('migrate:rollbac...', Array)
+#9 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(388): CodeIgniter\CLI\Console->run()
+#10 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(133): CodeIgniter\Boot::runCommand(Object(CodeIgniter\CLI\Console))
+#11 C:\xampp\htdocs\ITE311-MALIK\spark(87): CodeIgniter\Boot::bootSpark(Object(Config\Paths))
+#12 {main}
+ERROR - 2025-09-07 14:05:22 --> mysqli_sql_exception: Tablespace for table '`lms_malik`.`migrations`' exists. Please DISCARD the tablespace before IMPORT in C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php:327
+Stack trace:
+#0 C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php(327): mysqli->query('CREATE TABLE `m...', 0)
+#1 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(729): CodeIgniter\Database\MySQLi\Connection->execute('CREATE TABLE `m...')
+#2 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(646): CodeIgniter\Database\BaseConnection->simpleQuery('CREATE TABLE `m...')
+#3 C:\xampp\htdocs\ITE311-MALIK\system\Database\Forge.php(570): CodeIgniter\Database\BaseConnection->query('CREATE TABLE `m...')
+#4 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(815): CodeIgniter\Database\Forge->createTable('migrations', true)
+#5 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(162): CodeIgniter\Database\MigrationRunner->ensureTable()
+#6 C:\xampp\htdocs\ITE311-MALIK\system\Commands\Database\Migrate.php(85): CodeIgniter\Database\MigrationRunner->latest(NULL)
+#7 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Commands.php(74): CodeIgniter\Commands\Database\Migrate->run(Array)
+#8 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Console.php(47): CodeIgniter\CLI\Commands->run('migrate', Array)
+#9 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(388): CodeIgniter\CLI\Console->run()
+#10 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(133): CodeIgniter\Boot::runCommand(Object(CodeIgniter\CLI\Console))
+#11 C:\xampp\htdocs\ITE311-MALIK\spark(87): CodeIgniter\Boot::bootSpark(Object(Config\Paths))
+#12 {main}
+ERROR - 2025-09-07 14:07:05 --> mysqli_sql_exception: Tablespace for table '`lms_malik`.`migrations`' exists. Please DISCARD the tablespace before IMPORT in C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php:327
+Stack trace:
+#0 C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php(327): mysqli->query('CREATE TABLE `m...', 0)
+#1 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(729): CodeIgniter\Database\MySQLi\Connection->execute('CREATE TABLE `m...')
+#2 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(646): CodeIgniter\Database\BaseConnection->simpleQuery('CREATE TABLE `m...')
+#3 C:\xampp\htdocs\ITE311-MALIK\system\Database\Forge.php(570): CodeIgniter\Database\BaseConnection->query('CREATE TABLE `m...')
+#4 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(815): CodeIgniter\Database\Forge->createTable('migrations', true)
+#5 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(162): CodeIgniter\Database\MigrationRunner->ensureTable()
+#6 C:\xampp\htdocs\ITE311-MALIK\system\Commands\Database\Migrate.php(85): CodeIgniter\Database\MigrationRunner->latest(NULL)
+#7 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Commands.php(74): CodeIgniter\Commands\Database\Migrate->run(Array)
+#8 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Console.php(47): CodeIgniter\CLI\Commands->run('migrate', Array)
+#9 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(388): CodeIgniter\CLI\Console->run()
+#10 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(133): CodeIgniter\Boot::runCommand(Object(CodeIgniter\CLI\Console))
+#11 C:\xampp\htdocs\ITE311-MALIK\spark(87): CodeIgniter\Boot::bootSpark(Object(Config\Paths))
+#12 {main}
+ERROR - 2025-09-07 14:07:36 --> mysqli_sql_exception: Tablespace for table '`lms_malik`.`migrations`' exists. Please DISCARD the tablespace before IMPORT in C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php:327
+Stack trace:
+#0 C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php(327): mysqli->query('CREATE TABLE `m...', 0)
+#1 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(729): CodeIgniter\Database\MySQLi\Connection->execute('CREATE TABLE `m...')
+#2 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(646): CodeIgniter\Database\BaseConnection->simpleQuery('CREATE TABLE `m...')
+#3 C:\xampp\htdocs\ITE311-MALIK\system\Database\Forge.php(570): CodeIgniter\Database\BaseConnection->query('CREATE TABLE `m...')
+#4 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(815): CodeIgniter\Database\Forge->createTable('migrations', true)
+#5 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(162): CodeIgniter\Database\MigrationRunner->ensureTable()
+#6 C:\xampp\htdocs\ITE311-MALIK\system\Commands\Database\Migrate.php(85): CodeIgniter\Database\MigrationRunner->latest(NULL)
+#7 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Commands.php(74): CodeIgniter\Commands\Database\Migrate->run(Array)
+#8 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Console.php(47): CodeIgniter\CLI\Commands->run('migrate', Array)
+#9 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(388): CodeIgniter\CLI\Console->run()
+#10 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(133): CodeIgniter\Boot::runCommand(Object(CodeIgniter\CLI\Console))
+#11 C:\xampp\htdocs\ITE311-MALIK\spark(87): CodeIgniter\Boot::bootSpark(Object(Config\Paths))
+#12 {main}
+ERROR - 2025-09-07 14:08:19 --> mysqli_sql_exception: Duplicate key name 'email' in C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php:327
+Stack trace:
+#0 C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php(327): mysqli->query('CREATE TABLE `u...', 0)
+#1 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(729): CodeIgniter\Database\MySQLi\Connection->execute('CREATE TABLE `u...')
+#2 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(646): CodeIgniter\Database\BaseConnection->simpleQuery('CREATE TABLE `u...')
+#3 C:\xampp\htdocs\ITE311-MALIK\system\Database\Forge.php(570): CodeIgniter\Database\BaseConnection->query('CREATE TABLE `u...')
+#4 C:\xampp\htdocs\ITE311-MALIK\app\Database\Migrations\2025-08-29-184210_CreateUsersTable.php(68): CodeIgniter\Database\Forge->createTable('users')
+#5 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(876): App\Database\Migrations\CreateUsersTable->up()
+#6 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(182): CodeIgniter\Database\MigrationRunner->migrate('up', Object(stdClass))
+#7 C:\xampp\htdocs\ITE311-MALIK\system\Commands\Database\Migrate.php(85): CodeIgniter\Database\MigrationRunner->latest(NULL)
+#8 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Commands.php(74): CodeIgniter\Commands\Database\Migrate->run(Array)
+#9 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Console.php(47): CodeIgniter\CLI\Commands->run('migrate', Array)
+#10 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(388): CodeIgniter\CLI\Console->run()
+#11 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(133): CodeIgniter\Boot::runCommand(Object(CodeIgniter\CLI\Console))
+#12 C:\xampp\htdocs\ITE311-MALIK\spark(87): CodeIgniter\Boot::bootSpark(Object(Config\Paths))
+#13 {main}
+ERROR - 2025-09-07 14:13:13 --> mysqli_sql_exception: Unknown table 'lms_malik.submissions' in C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php:327
+Stack trace:
+#0 C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php(327): mysqli->query('DROP TABLE `sub...', 0)
+#1 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(729): CodeIgniter\Database\MySQLi\Connection->execute('DROP TABLE `sub...')
+#2 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(646): CodeIgniter\Database\BaseConnection->simpleQuery('DROP TABLE `sub...')
+#3 C:\xampp\htdocs\ITE311-MALIK\system\Database\Forge.php(663): CodeIgniter\Database\BaseConnection->query('DROP TABLE `sub...')
+#4 C:\xampp\htdocs\ITE311-MALIK\app\Database\Migrations\2025-08-29-184250_CreateSubmissionsTable.php(93): CodeIgniter\Database\Forge->dropTable('submissions')
+#5 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(876): App\Database\Migrations\CreateSubmissionsTable->down()
+#6 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(289): CodeIgniter\Database\MigrationRunner->migrate('down', Object(stdClass))
+#7 C:\xampp\htdocs\ITE311-MALIK\system\Commands\Database\MigrateRollback.php(101): CodeIgniter\Database\MigrationRunner->regress(0)
+#8 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Commands.php(74): CodeIgniter\Commands\Database\MigrateRollback->run(Array)
+#9 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Console.php(47): CodeIgniter\CLI\Commands->run('migrate:rollbac...', Array)
+#10 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(388): CodeIgniter\CLI\Console->run()
+#11 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(133): CodeIgniter\Boot::runCommand(Object(CodeIgniter\CLI\Console))
+#12 C:\xampp\htdocs\ITE311-MALIK\spark(87): CodeIgniter\Boot::bootSpark(Object(Config\Paths))
+#13 {main}
