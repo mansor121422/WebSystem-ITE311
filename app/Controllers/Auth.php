@@ -1,117 +1,212 @@
 <?php
+
 namespace App\Controllers;
 
-use App\Models\UserModel;
-use CodeIgniter\Controller;
+use App\Controllers\BaseController;
+use CodeIgniter\HTTP\ResponseInterface;
 
-class Auth extends Controller
+class Auth extends BaseController
 {
     public function register()
     {
         helper(['form']);
-        $session = session();
-        $model = new UserModel();
         
+        // Check if form was submitted (POST request)
         if ($this->request->getMethod() === 'POST') {
-            $rules = [
-                'name' => 'required|min_length[3]|max_length[100]',
-                'email' => 'required|valid_email|is_unique[users.email]',
-                'password' => 'required|min_length[6]',
-                'password_confirm' => 'matches[password]'
+            // Get form data
+            $name = $this->request->getPost('name');
+            $email = $this->request->getPost('email');
+            $password = $this->request->getPost('password');
+            $password_confirm = $this->request->getPost('password_confirm');
+
+            // Simple validation
+            if (empty($name) || empty($email) || empty($password) || empty($password_confirm)) {
+                session()->setFlashdata('error', 'All fields are required.');
+                return view('auth/register');
+            }
+
+            if ($password !== $password_confirm) {
+                session()->setFlashdata('error', 'Passwords do not match.');
+                return view('auth/register');
+            }
+
+            // Enhanced password validation
+            if (strlen($password) < 8) {
+                session()->setFlashdata('error', 'Password must be at least 8 characters.');
+                return view('auth/register');
+            }
+
+            if (!preg_match('/[A-Z]/', $password)) {
+                session()->setFlashdata('error', 'Password must contain at least one uppercase letter.');
+                return view('auth/register');
+            }
+
+            if (!preg_match('/[a-z]/', $password)) {
+                session()->setFlashdata('error', 'Password must contain at least one lowercase letter.');
+                return view('auth/register');
+            }
+
+            if (!preg_match('/[0-9]/', $password)) {
+                session()->setFlashdata('error', 'Password must contain at least one number.');
+                return view('auth/register');
+            }
+
+            if (!preg_match('/[^A-Za-z0-9]/', $password)) {
+                session()->setFlashdata('error', 'Password must contain at least one special character.');
+                return view('auth/register');
+            }
+
+            // Hash the password
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+            // Save user data to database
+            $userModel = new \App\Models\UserModel();
+            $userData = [
+                'name' => $name,
+                'email' => $email,
+                'password' => $hashedPassword,
+                'role' => 'student',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
             ];
-            
-            if ($this->validate($rules)) {
-                // Split the name into first_name and last_name
-                $nameParts = explode(' ', trim($this->request->getPost('name')), 2);
-                $firstName = $nameParts[0];
-                $lastName = isset($nameParts[1]) ? $nameParts[1] : '';
+
+
+
+            try {
+                $result = $userModel->insert($userData);
                 
-                // Generate username from email
-                $email = $this->request->getPost('email');
-                $username = explode('@', $email)[0];
-                
-                $data = [
-                    'username' => $username,
-                    'first_name' => $firstName,
-                    'last_name' => $lastName,
-                    'email' => $email,
-                    'password' => password_hash($this->request->getPost('password'), PASSWORD_DEFAULT),
-                    'role' => 'student',
-                    'status' => 'active'
-                ];
-                
-                // Save user to database
-                if ($model->insert($data)) {
-                    $session->setFlashdata('success', 'Registration successful. Please login.');
+                if ($result) {
+                    // Set flash message and redirect to login
+                    session()->setFlashdata('success', 'Registration successful! Please login.');
                     return redirect()->to('/login');
                 } else {
-                    // Get the last error for debugging
-                    $errors = $model->errors();
-                    $errorMessage = 'Registration failed. ';
-                    if (!empty($errors)) {
-                        $errorMessage .= implode(', ', $errors);
-                    } else {
-                        $errorMessage .= 'Please try again.';
-                    }
-                    $session->setFlashdata('error', $errorMessage);
+                    // Debug: Show the error
+                    $errors = $userModel->errors();
+                    session()->setFlashdata('error', 'Registration failed. Errors: ' . json_encode($errors));
                 }
+            } catch (\Exception $e) {
+                session()->setFlashdata('error', 'Registration failed: ' . $e->getMessage());
             }
         }
-        
-        echo view('auth/register', [
-            'validation' => $this->validator
-        ]);
+
+        // Load the registration view
+        return view('auth/register');
     }
 
     public function login()
     {
         helper(['form']);
-        $session = session();
-        $model = new UserModel();
+        
+        // Check if form was submitted (POST request)
         if ($this->request->getMethod() === 'POST') {
-            $rules = [
-                'email' => 'required|valid_email',
-                'password' => 'required'
-            ];
-            if ($this->validate($rules)) {
-                $email = $this->request->getPost('email');
-                $password = $this->request->getPost('password');
-                $user = $model->where('email', $email)->first();
-                if ($user && password_verify($password, $user['password'])) {
-                    // Create full name from first_name and last_name
-                    $fullName = trim($user['first_name'] . ' ' . $user['last_name']);
-                    
-                    $session->set([
-                        'user_id' => $user['id'],
-                        'user_name' => $fullName,
-                        'user_email' => $user['email'],
-                        'role' => $user['role'],
-                        'isLoggedIn' => true
-                    ]);
-                    $session->setFlashdata('success', 'Welcome, ' . $fullName . '!');
-                    return redirect()->to('/dashboard');
-                } else {
-                    $session->setFlashdata('error', 'Invalid login credentials.');
-                }
+            // Rate limiting: Check for too many login attempts
+            $ip = $this->request->getIPAddress();
+            $attemptsKey = 'login_attempts_' . $ip;
+            $attempts = session($attemptsKey) ?? 0;
+            
+            if ($attempts >= 5) {
+                session()->setFlashdata('error', 'Too many login attempts. Please try again later.');
+                return view('auth/login');
             }
+            // Get form data
+            $email = $this->request->getPost('email');
+            $password = $this->request->getPost('password');
+
+            // Simple validation
+            if (empty($email) || empty($password)) {
+                session()->setFlashdata('error', 'Email and password are required.');
+                return view('auth/login');
+            }
+
+            // Check database for user
+            $userModel = new \App\Models\UserModel();
+            $user = $userModel->where('email', $email)->first();
+
+            // Check if user was found
+            if (!$user) {
+                $attempts++;
+                session()->set($attemptsKey, $attempts);
+                session()->setFlashdata('error', 'Invalid credentials. Attempts remaining: ' . (5 - $attempts));
+                return view('auth/login');
+            }
+
+            // Check password verification
+            if (!password_verify($password, $user['password'])) {
+                $attempts++;
+                session()->set($attemptsKey, $attempts);
+                session()->setFlashdata('error', 'Invalid credentials. Attempts remaining: ' . (5 - $attempts));
+                return view('auth/login');
+            }
+
+            // Credentials are correct, create session
+            $sessionData = [
+                'userID' => $user['id'],
+                'name' => $user['name'],
+                'email' => $user['email'],
+                'role' => $user['role'],
+                'logged_in' => true
+            ];
+            
+            session()->set($sessionData);
+            
+            // Clear login attempts on successful login
+            session()->remove($attemptsKey);
+
+            // Unified dashboard redirection for all roles
+            session()->setFlashdata('success', 'Welcome back, ' . $user['name'] . '!');
+            return redirect()->to('/dashboard');
         }
-        echo view('auth/login', [
-            'validation' => $this->validator
-        ]);
+
+        // For GET requests, just load the login view
+        return view('auth/login');
     }
 
     public function logout()
     {
+        // Destroy the current session
         session()->destroy();
-        return redirect()->to('/login');
+        
+        // Redirect to homepage
+        return redirect()->to('/');
     }
 
     public function dashboard()
     {
-        $session = session();
-        if (!$session->get('isLoggedIn')) {
+        // Check if user is logged in
+        if (!session()->get('logged_in')) {
+            session()->setFlashdata('error', 'You must be logged in to access the dashboard.');
             return redirect()->to('/login');
         }
-        echo view('dashboard');
+
+        $userModel = new \App\Models\UserModel();
+        $role = strtolower(session('role') ?? '');
+        
+        // Fetch role-specific data from database
+        $data = [
+            'role' => $role,
+            'user' => [
+                'id' => session('userID'),
+                'name' => session('name'),
+                'email' => session('email'),
+                'role' => session('role'),
+            ],
+        ];
+
+        // Role-specific data fetching
+        if ($role === 'admin') {
+            $data['totalUsers'] = $userModel->countAllResults();
+            $data['totalCourses'] = 0; // Placeholder - would need courses table
+            $data['recentUsers'] = $userModel->orderBy('created_at', 'DESC')->limit(5)->findAll();
+        } elseif ($role === 'teacher') {
+            $data['myCourses'] = ['Math 101', 'Science 202']; // Placeholder
+            $data['pendingAssignments'] = 5; // Placeholder
+            $data['totalStudents'] = $userModel->where('role', 'student')->countAllResults();
+        } elseif ($role === 'student') {
+            $data['enrolledCourses'] = ['History 101', 'Art 303']; // Placeholder
+            $data['upcomingDeadlines'] = ['Assignment 1 (Oct 1)', 'Quiz 2 (Oct 5)']; // Placeholder
+            $data['completedAssignments'] = 3; // Placeholder
+        }
+
+        return view('auth/dashboard', $data);
     }
 }

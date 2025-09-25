@@ -8,128 +8,48 @@ class UserSeeder extends Seeder
 {
     public function run()
     {
-        $data = [
-            // Admin Users
-            [
-                'username' => 'admin',
-                'email' => 'admin@gmail.com',
-                'password' => password_hash('admin123', PASSWORD_DEFAULT),
-                'first_name' => 'System',
-                'last_name' => 'Administrator',
-                'role' => 'admin',
-                'status' => 'active',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
-            ],
-            [
-                'username' => 'superadmin',
-                'email' => 'superadmin@gmail.com',
-                'password' => password_hash('super123', PASSWORD_DEFAULT),
-                'first_name' => 'Super',
-                'last_name' => 'Admin',
-                'role' => 'admin',
-                'status' => 'active',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
-            ],
+        $now = date('Y-m-d H:i:s');
 
-            // Instructor Users
+        $users = [
             [
-                'username' => 'instructor1',
-                'email' => 'BoyetAdlawan@gmail.com',
-                'password' => password_hash('instructor123', PASSWORD_DEFAULT),
-                'first_name' => 'Boyet',
-                'last_name' => 'Adlawan',
-                'role' => 'instructor',
-                'status' => 'active',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'name'       => 'Admin User',
+                'email'      => 'admin@example.com',
+                'password'   => password_hash('Admin@123', PASSWORD_DEFAULT),
+                'role'       => 'admin',
+                'created_at' => $now,
+                'updated_at' => $now,
             ],
             [
-                'username' => 'instructor2',
-                'email' => 'jade.smith@lms.com',
-                'password' => password_hash('instructor123', PASSWORD_DEFAULT),
-                'first_name' => 'Jade',
-                'last_name' => 'Smith',
-                'role' => 'instructor',
-                'status' => 'active',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'name'       => 'Teacher User',
+                'email'      => 'teacher@example.com',
+                'password'   => password_hash('Teacher@123', PASSWORD_DEFAULT),
+                'role'       => 'teacher',
+                'created_at' => $now,
+                'updated_at' => $now,
             ],
             [
-                'username' => 'instructor3',
-                'email' => 'mike.tyson@lms.com',
-                'password' => password_hash('instructor123', PASSWORD_DEFAULT),
-                'first_name' => 'Mike',
-                'last_name' => 'Tyson',
-                'role' => 'instructor',
-                'status' => 'active',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+                'name'       => 'Student User',
+                'email'      => 'student@example.com',
+                'password'   => password_hash('Student@123', PASSWORD_DEFAULT),
+                'role'       => 'student',
+                'created_at' => $now,
+                'updated_at' => $now,
             ],
-
-            // Student Users
-            [
-                'username' => 'student1',
-                'email' => 'alice.go@student.com',
-                'password' => password_hash('student123', PASSWORD_DEFAULT),
-                'first_name' => 'Alice',
-                'last_name' => 'Go',
-                'role' => 'student',
-                'status' => 'active',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
-            ],
-            [
-                'username' => 'student2',
-                'email' => 'bobi.brown@student.com',
-                'password' => password_hash('student123', PASSWORD_DEFAULT),
-                'first_name' => 'Bobi',
-                'last_name' => 'Brown',
-                'role' => 'student',
-                'status' => 'active',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
-            ],
-            [
-                'username' => 'student3',
-                'email' => 'antony.davis@student.com',
-                'password' => password_hash('student123', PASSWORD_DEFAULT),
-                'first_name' => 'antony',
-                'last_name' => 'Davis',
-                'role' => 'student',
-                'status' => 'active',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
-            ],
-            [
-                'username' => 'student4',
-                'email' => 'david.smith@student.com',
-                'password' => password_hash('student123', PASSWORD_DEFAULT),
-                'first_name' => 'David',
-                'last_name' => 'smith',
-                'role' => 'student',
-                'status' => 'active',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
-            ],
-            [
-                'username' => 'student5',
-                'email' => 'emma.brown@student.com',
-                'password' => password_hash('student123', PASSWORD_DEFAULT),
-                'first_name' => 'Emma',
-                'last_name' => 'brown',
-                'role' => 'student',
-                'status' => 'active',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
-            ],
-           
         ];
 
-        // Insert all users
-        $this->db->table('users')->insertBatch($data);
+        // Clear existing demo accounts first to avoid conflicts
+        $this->db->table('users')->whereIn('email', [
+            'admin@example.com', 
+            'teacher@example.com', 
+            'student@example.com'
+        ])->delete();
+
+        // Insert fresh demo accounts with correct roles
+        $this->db->table('users')->insertBatch($users);
         
-        echo "Sample users created successfully!\n";
+        // Double-check roles are set correctly
+        $this->db->query("UPDATE users SET role = 'admin' WHERE email = 'admin@example.com'");
+        $this->db->query("UPDATE users SET role = 'teacher' WHERE email = 'teacher@example.com'");  
+        $this->db->query("UPDATE users SET role = 'student' WHERE email = 'student@example.com'");
     }
 }

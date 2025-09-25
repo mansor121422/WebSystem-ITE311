@@ -11,8 +11,8 @@
     <?php endif; ?>
     
     <div class="text-center">
-        <h3>Hello, <?= session('user_name') ?>!</h3>
-        <p><strong>Email:</strong> <?= session('user_email') ?></p>
+        <h3>Hello, <?= session('name') ?>!</h3>
+        <p><strong>Email:</strong> <?= session('email') ?></p>
         <p><strong>Role:</strong> <?= ucfirst(session('role')) ?></p>
     </div>
     
