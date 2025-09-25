@@ -99,15 +99,6 @@ class Auth extends BaseController
         
         // Check if form was submitted (POST request)
         if ($this->request->getMethod() === 'POST') {
-            // Rate limiting: Check for too many login attempts
-            $ip = $this->request->getIPAddress();
-            $attemptsKey = 'login_attempts_' . $ip;
-            $attempts = session($attemptsKey) ?? 0;
-            
-            if ($attempts >= 5) {
-                session()->setFlashdata('error', 'Too many login attempts. Please try again later.');
-                return view('auth/login');
-            }
             // Get form data
             $email = $this->request->getPost('email');
             $password = $this->request->getPost('password');
@@ -124,17 +115,13 @@ class Auth extends BaseController
 
             // Check if user was found
             if (!$user) {
-                $attempts++;
-                session()->set($attemptsKey, $attempts);
-                session()->setFlashdata('error', 'Invalid credentials. Attempts remaining: ' . (5 - $attempts));
+                session()->setFlashdata('error', 'Invalid credentials.');
                 return view('auth/login');
             }
 
             // Check password verification
             if (!password_verify($password, $user['password'])) {
-                $attempts++;
-                session()->set($attemptsKey, $attempts);
-                session()->setFlashdata('error', 'Invalid credentials. Attempts remaining: ' . (5 - $attempts));
+                session()->setFlashdata('error', 'Invalid credentials.');
                 return view('auth/login');
             }
 
@@ -148,9 +135,6 @@ class Auth extends BaseController
             ];
             
             session()->set($sessionData);
-            
-            // Clear login attempts on successful login
-            session()->remove($attemptsKey);
 
             // Unified dashboard redirection for all roles
             session()->setFlashdata('success', 'Welcome back, ' . $user['name'] . '!');

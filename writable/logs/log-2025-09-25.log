@@ -554,3 +554,18 @@ in APPPATH\Views\auth\login.php on line 28.
  8 SYSTEMPATH\Boot.php(363): CodeIgniter\CodeIgniter->run()
  9 SYSTEMPATH\Boot.php(68): CodeIgniter\Boot::runCodeIgniter(Object(CodeIgniter\CodeIgniter))
 10 FCPATH\index.php(59): CodeIgniter\Boot::bootWeb(Object(Config\Paths))
+ERROR - 2025-09-25 18:13:22 --> mysqli_sql_exception: Unknown column 'first_name' in 'where clause' in C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php:327
+Stack trace:
+#0 C:\xampp\htdocs\ITE311-MALIK\system\Database\MySQLi\Connection.php(327): mysqli->query('UPDATE users SE...', 0)
+#1 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(729): CodeIgniter\Database\MySQLi\Connection->execute('UPDATE users SE...')
+#2 C:\xampp\htdocs\ITE311-MALIK\system\Database\BaseConnection.php(646): CodeIgniter\Database\BaseConnection->simpleQuery('UPDATE users SE...')
+#3 C:\xampp\htdocs\ITE311-MALIK\app\Database\Migrations\2025-08-30-061500_UpdateUsersTable.php(23): CodeIgniter\Database\BaseConnection->query('UPDATE users SE...')
+#4 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(876): App\Database\Migrations\UpdateUsersTable->up()
+#5 C:\xampp\htdocs\ITE311-MALIK\system\Database\MigrationRunner.php(182): CodeIgniter\Database\MigrationRunner->migrate('up', Object(stdClass))
+#6 C:\xampp\htdocs\ITE311-MALIK\system\Commands\Database\Migrate.php(85): CodeIgniter\Database\MigrationRunner->latest(NULL)
+#7 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Commands.php(74): CodeIgniter\Commands\Database\Migrate->run(Array)
+#8 C:\xampp\htdocs\ITE311-MALIK\system\CLI\Console.php(47): CodeIgniter\CLI\Commands->run('migrate', Array)
+#9 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(388): CodeIgniter\CLI\Console->run()
+#10 C:\xampp\htdocs\ITE311-MALIK\system\Boot.php(133): CodeIgniter\Boot::runCommand(Object(CodeIgniter\CLI\Console))
+#11 C:\xampp\htdocs\ITE311-MALIK\spark(87): CodeIgniter\Boot::bootSpark(Object(Config\Paths))
+#12 {main}

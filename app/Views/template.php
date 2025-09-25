@@ -182,25 +182,8 @@
     </style>
 </head>
 <body>
-    <!-- Navigation Bar -->
-    <nav class="navbar">
-        <div class="container">
-            <a class="navbar-brand" href="<?= base_url('/') ?>">
-                LMS System
-            </a>
-            
-            <ul class="navbar-nav">
-                <li><a class="nav-link <?= ($page ?? '') === 'home' ? 'active' : '' ?>" href="<?= base_url('/') ?>">Home</a></li>
-                <li><a class="nav-link <?= ($page ?? '') === 'about' ? 'active' : '' ?>" href="<?= base_url('about') ?>">About</a></li>
-                <li><a class="nav-link <?= ($page ?? '') === 'contact' ? 'active' : '' ?>" href="<?= base_url('contact') ?>">Contact</a></li>
-                <?php if (session()->get('isLoggedIn')): ?>
-                    <li><a class="nav-link" href="<?= base_url('logout') ?>" style="color: #e74c3c;">Logout</a></li>
-                <?php else: ?>
-                    <li><a class="nav-link" href="<?= base_url('login') ?>">Login</a></li>
-                <?php endif; ?>
-            </ul>
-        </div>
-    </nav>
+    <!-- Dynamic Navigation Bar -->
+    <?= $this->include('templates/header') ?>
 
     <!-- Main Content Area -->
     <main class="main-content">
