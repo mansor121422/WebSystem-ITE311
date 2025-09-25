@@ -107,7 +107,7 @@
     <?php endif; ?>
     
     <div class="text-center mt-4">
-        <a href="<?= site_url('logout') ?>" class="btn btn-danger">Logout</a>
+        <a href="<?= site_url('logout') ?>" class="btn btn-primary">Logout</a>
     </div>
 </div>
 <?= $this->endSection() ?>
