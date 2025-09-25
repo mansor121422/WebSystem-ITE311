@@ -74,7 +74,7 @@ class UserSeeder extends Seeder
                 'email' => 'alice.johnson@student.com',
                 'password' => password_hash('student123', PASSWORD_DEFAULT),
                 'first_name' => 'Alice',
-                'last_name' => 'Johnson',
+                'last_name' => 'Johnsonn',
                 'role' => 'student',
                 'status' => 'active',
                 'created_at' => date('Y-m-d H:i:s'),
