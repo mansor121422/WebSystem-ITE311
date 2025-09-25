@@ -15,9 +15,28 @@ $currentPage = $page ?? '';
         
         <ul class="navbar-nav navbar-nav-center">
             <li><a class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('dashboard') ?>">Dashboard</a></li>
-            <li><a class="nav-link" href="<?= base_url('courses') ?>">Courses</a></li>
-            <li><a class="nav-link" href="<?= base_url('assignments') ?>">Assignments</a></li>
-            <li><a class="nav-link" href="<?= base_url('grades') ?>">Grades</a></li>
+            
+            <?php if ($userRole === 'admin'): ?>
+                <!-- Admin Navigation -->
+                <li><a class="nav-link" href="<?= base_url('admin/users') ?>">Users</a></li>
+                <li><a class="nav-link" href="<?= base_url('admin/courses') ?>">Courses</a></li>
+                <li><a class="nav-link" href="<?= base_url('admin/reports') ?>">Reports</a></li>
+                <li><a class="nav-link" href="<?= base_url('admin/settings') ?>">Settings</a></li>
+                
+            <?php elseif ($userRole === 'teacher'): ?>
+                <!-- Teacher Navigation -->
+                <li><a class="nav-link" href="<?= base_url('teacher/courses') ?>">Courses</a></li>
+                <li><a class="nav-link" href="<?= base_url('teacher/students') ?>">Students</a></li>
+                <li><a class="nav-link" href="<?= base_url('teacher/create') ?>">Create</a></li>
+                <li><a class="nav-link" href="<?= base_url('teacher/analytics') ?>">Lessons</a></li>
+                
+            <?php elseif ($userRole === 'student'): ?>
+                <!-- Student Navigation -->
+                <li><a class="nav-link" href="<?= base_url('student/courses') ?>">Courses</a></li>
+                <li><a class="nav-link" href="<?= base_url('student/assignments') ?>">Assignments</a></li>
+                <li><a class="nav-link" href="<?= base_url('student/grades') ?>">Grades</a></li>
+
+            <?php endif; ?>
         </ul>
     </div>
 </nav>
