@@ -13,7 +13,7 @@ class Home extends BaseController
         $data = [
             'title' => 'Home - LMS System',
             'page' => 'home',
-            'isLoggedIn' => $session->get('isLoggedIn')
+            'isLoggedIn' => $session->get('logged_in')
         ];
         
         return view('index', $data);
@@ -28,7 +28,7 @@ class Home extends BaseController
         $data = [
             'title' => 'About Us - LMS System',
             'page' => 'about',
-            'isLoggedIn' => $session->get('isLoggedIn')
+            'isLoggedIn' => $session->get('logged_in')
         ];
         
         return view('about', $data);
@@ -43,7 +43,7 @@ class Home extends BaseController
         $data = [
             'title' => 'Contact Us - LMS System',
             'page' => 'contact',
-            'isLoggedIn' => $session->get('isLoggedIn')
+            'isLoggedIn' => $session->get('logged_in')
         ];
         
         return view('contact', $data);

@@ -131,7 +131,8 @@ class Auth extends BaseController
                 'name' => $user['name'],
                 'email' => $user['email'],
                 'role' => $user['role'],
-                'logged_in' => true
+                'logged_in' => true,
+                'last_activity' => time()
             ];
             
             session()->set($sessionData);
@@ -154,13 +155,36 @@ class Auth extends BaseController
         return redirect()->to('/');
     }
 
+    public function clearSession()
+    {
+        // Destroy the current session
+        session()->destroy();
+        
+        // Redirect to homepage with success message
+        session()->setFlashdata('success', 'Session cleared successfully.');
+        return redirect()->to('/');
+    }
+
     public function dashboard()
     {
-        // Check if user is logged in
-        if (!session()->get('logged_in')) {
+        // Check if user is logged in and has valid session
+        if (!session()->get('logged_in') || !session()->get('userID') || !session()->get('role')) {
+            // Clear any existing session data
+            session()->destroy();
             session()->setFlashdata('error', 'You must be logged in to access the dashboard.');
             return redirect()->to('/login');
         }
+
+        // Check for session timeout (optional - 30 minutes)
+        $lastActivity = session()->get('last_activity');
+        if ($lastActivity && (time() - $lastActivity > 1800)) { // 30 minutes
+            session()->destroy();
+            session()->setFlashdata('error', 'Your session has expired. Please login again.');
+            return redirect()->to('/login');
+        }
+
+        // Update last activity time
+        session()->set('last_activity', time());
 
         $userModel = new \App\Models\UserModel();
         $role = strtolower(session('role') ?? '');
@@ -186,7 +210,42 @@ class Auth extends BaseController
             $data['pendingAssignments'] = 5; // Placeholder
             $data['totalStudents'] = $userModel->where('role', 'student')->countAllResults();
         } elseif ($role === 'student') {
-            $data['enrolledCourses'] = ['History 101', 'Art 303']; // Placeholder
+            // Fetch real enrolled courses data using EnrollmentModel
+            $enrollmentModel = new \App\Models\EnrollmentModel();
+            $data['enrolledCourses'] = $enrollmentModel->getUserEnrollments(session('userID'));
+            
+            // Sample available courses (in a real app, this would come from a CourseModel)
+            $data['availableCourses'] = [
+                [
+                    'id' => 1,
+                    'title' => 'Introduction to Programming',
+                    'description' => 'Learn the fundamentals of programming with Python',
+                    'instructor' => 'Dr. Smith',
+                    'duration' => '8 weeks'
+                ],
+                [
+                    'id' => 2,
+                    'title' => 'Web Development Basics',
+                    'description' => 'HTML, CSS, and JavaScript fundamentals',
+                    'instructor' => 'Prof. Johnson',
+                    'duration' => '6 weeks'
+                ],
+                [
+                    'id' => 3,
+                    'title' => 'Database Management',
+                    'description' => 'SQL and database design principles',
+                    'instructor' => 'Dr. Brown',
+                    'duration' => '10 weeks'
+                ],
+                [
+                    'id' => 4,
+                    'title' => 'Data Structures & Algorithms',
+                    'description' => 'Advanced programming concepts and problem solving',
+                    'instructor' => 'Prof. Davis',
+                    'duration' => '12 weeks'
+                ]
+            ];
+            
             $data['upcomingDeadlines'] = ['Assignment 1 (Oct 1)', 'Quiz 2 (Oct 5)']; // Placeholder
             $data['completedAssignments'] = 3; // Placeholder
         }
