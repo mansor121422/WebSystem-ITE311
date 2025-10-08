@@ -345,60 +345,61 @@
     <script>
     $(document).ready(function() {
         // Handle enrollment button clicks
-        $('.enroll-btn').on('click', function() {
+        $('.enroll-btn').on('click', function(e) {
+            // Prevent default form submission behavior
+            e.preventDefault();
+            
             const courseId = $(this).data('course-id');
             const courseTitle = $(this).data('course-title');
             const button = $(this);
+            const courseCard = button.closest('.col-md-6, .col-lg-4');
             
             // Disable button and show loading state
             button.prop('disabled', true);
             button.html('<i class="fas fa-spinner fa-spin"></i> Enrolling...');
             
-            // Make AJAX request to enroll
-            $.ajax({
-                url: '<?= base_url('course/enroll') ?>',
-                type: 'POST',
-                data: {
-                    course_id: courseId
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        // Show success message
-                        showAlert('success', response.message);
-                        
-                        // Update button to show enrolled state
-                        button.removeClass('btn-primary').addClass('btn-success');
-                        button.html('<i class="fas fa-check"></i> Enrolled');
-                        
-                        // Optionally reload the page to show updated enrolled courses
-                        setTimeout(function() {
-                            location.reload();
-                        }, 2000);
-                    } else {
-                        // Show error message
-                        showAlert('danger', response.message);
-                        
-                        // Reset button
-                        button.prop('disabled', false);
-                        button.html('<i class="fas fa-plus"></i> Enroll Now');
-                    }
-                },
-                error: function(xhr, status, error) {
+            // Use $.post() to send the course_id to the /course/enroll URL
+            $.post('<?= base_url('course/enroll') ?>', {
+                course_id: courseId
+            }, function(response) {
+                if (response.success) {
+                    // Display Bootstrap alert message
+                    showAlert('success', response.message);
+                    
+                    // Hide or disable the Enroll button for that course
+                    button.removeClass('btn-primary').addClass('btn-success');
+                    button.html('<i class="fas fa-check"></i> Enrolled');
+                    button.prop('disabled', true);
+                    
+                    // Update the Enrolled Courses list dynamically without reloading the page
+                    addToEnrolledCourses(courseId, courseTitle, response.enrollment_date);
+                    
+                    // Update stats
+                    updateStats();
+                    
+                } else {
                     // Show error message
-                    showAlert('danger', 'An error occurred while enrolling. Please try again.');
+                    showAlert('danger', response.message);
                     
                     // Reset button
                     button.prop('disabled', false);
                     button.html('<i class="fas fa-plus"></i> Enroll Now');
                 }
+            }, 'json').fail(function(xhr, status, error) {
+                // Show error message
+                showAlert('danger', 'An error occurred while enrolling. Please try again.');
+                
+                // Reset button
+                button.prop('disabled', false);
+                button.html('<i class="fas fa-plus"></i> Enroll Now');
             });
         });
         
-        // Function to show alert messages
+        // Function to show Bootstrap alert messages
         function showAlert(type, message) {
             const alertHtml = `
                 <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i>
                     ${message}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
@@ -414,6 +415,110 @@
             setTimeout(function() {
                 $('.alert').fadeOut();
             }, 5000);
+        }
+        
+        // Function to add course to enrolled courses section dynamically
+        function addToEnrolledCourses(courseId, courseTitle, enrollmentDate) {
+            const enrolledCoursesContainer = $('.student-dashboard .mb-5').first();
+            
+            // Check if enrolled courses section exists and has courses
+            if (enrolledCoursesContainer.length && enrolledCoursesContainer.find('.row').length) {
+                const newCourseHtml = `
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">${courseTitle}</h5>
+                                <p class="card-text text-muted">Course description will be loaded...</p>
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-user"></i> Instructor TBD
+                                    </small>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock"></i> Duration TBD
+                                    </small>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-success">
+                                        <i class="fas fa-calendar"></i> Enrolled: ${new Date(enrollmentDate).toLocaleDateString()}
+                                    </small>
+                                </div>
+                                <div class="progress mb-2" style="height: 8px;">
+                                    <div class="progress-bar" role="progressbar" style="width: 0%" 
+                                         aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                    </div>
+                                </div>
+                                <small class="text-muted">Progress: 0%</small>
+                            </div>
+                            <div class="card-footer">
+                                <span class="badge bg-success">Active</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add to enrolled courses
+                enrolledCoursesContainer.find('.row').append(newCourseHtml);
+            } else {
+                // If no enrolled courses section exists, create it
+                const enrolledSectionHtml = `
+                    <div class="mb-5">
+                        <h3 class="mb-3">
+                            <i class="fas fa-book-open"></i> My Enrolled Courses
+                        </h3>
+                        <div class="row">
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title">${courseTitle}</h5>
+                                        <p class="card-text text-muted">Course description will be loaded...</p>
+                                        <div class="mb-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-user"></i> Instructor TBD
+                                            </small>
+                                        </div>
+                                        <div class="mb-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock"></i> Duration TBD
+                                            </small>
+                                        </div>
+                                        <div class="mb-2">
+                                            <small class="text-success">
+                                                <i class="fas fa-calendar"></i> Enrolled: ${new Date(enrollmentDate).toLocaleDateString()}
+                                            </small>
+                                        </div>
+                                        <div class="progress mb-2" style="height: 8px;">
+                                            <div class="progress-bar" role="progressbar" style="width: 0%" 
+                                                 aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">Progress: 0%</small>
+                                    </div>
+                                    <div class="card-footer">
+                                        <span class="badge bg-success">Active</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Insert before available courses section
+                $('.student-dashboard h3').first().parent().after(enrolledSectionHtml);
+            }
+        }
+        
+        // Function to update stats dynamically
+        function updateStats() {
+            const enrolledCount = $('.student-dashboard .mb-5').first().find('.col-md-6, .col-lg-4').length;
+            const availableCount = $('.student-dashboard .mb-5').last().find('.col-md-6, .col-lg-4').length;
+            
+            // Update enrolled courses count
+            $('.student-dashboard .row.mb-4 .col-md-4:first .card-title').text(enrolledCount);
+            
+            // Update available courses count (subtract 1 since one was enrolled)
+            $('.student-dashboard .row.mb-4 .col-md-4:last .card-title').text(availableCount - 1);
         }
     });
     </script>
