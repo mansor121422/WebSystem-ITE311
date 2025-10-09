@@ -16,9 +16,11 @@ $routes->get('login', 'Auth::login');
 $routes->post('login', 'Auth::login');
 $routes->get('logout', 'Auth::logout');
 $routes->get('dashboard', 'Auth::dashboard');
+$routes->get('clear-session', 'Auth::clearSession');
 
 // Course Routes
 $routes->post('course/enroll', 'Course::enroll');
+$routes->get('course/enrollments', 'Course::getUserEnrollments');
 $routes->get('course/user-courses', 'Course::getUserCourses');
 $routes->post('course/update-progress', 'Course::updateProgress');
 $routes->get('course/stats', 'Course::getStats');

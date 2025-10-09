@@ -261,6 +261,17 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
+        
+        /* Ensure enroll button is clickable */
+        .enroll-btn {
+            cursor: pointer !important;
+            pointer-events: auto !important;
+        }
+        
+        .enroll-btn:hover {
+            background-color: #1a252f !important;
+            transform: translateY(-1px);
+        }
 
         .student-dashboard h3 {
             color: #2c3e50;
@@ -341,12 +352,24 @@
         <p>&copy; <?= date('Y') ?> LMS System. All rights reserved.</p>
     </footer>
 
+    <!-- jQuery (Load first) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
     <!-- Enrollment JavaScript -->
     <script>
     $(document).ready(function() {
+        console.log('Document ready - jQuery loaded successfully');
+        console.log('Found enroll buttons:', $('.enroll-btn').length);
+        
+        // Clear any existing error messages on page load
+        $('.alert-danger').fadeOut();
+        
+        // Load enrolled courses from database on page load
+        loadEnrolledCourses();
+        
         // Handle enrollment button clicks
-        $('.enroll-btn').on('click', function(e) {
-            // Prevent default form submission behavior
+        $(document).on('click', '.enroll-btn', function(e) {
+            console.log('Enroll button clicked!');
             e.preventDefault();
             
             const courseId = $(this).data('course-id');
@@ -354,16 +377,22 @@
             const button = $(this);
             const courseCard = button.closest('.col-md-6, .col-lg-4');
             
+            console.log('Course ID:', courseId, 'Course Title:', courseTitle);
+            
             // Disable button and show loading state
             button.prop('disabled', true);
             button.html('<i class="fas fa-spinner fa-spin"></i> Enrolling...');
             
             // Use $.post() to send the course_id to the /course/enroll URL
+            console.log('Sending AJAX request to:', '<?= base_url('course/enroll') ?>');
+            console.log('Course ID:', courseId);
+            
             $.post('<?= base_url('course/enroll') ?>', {
                 course_id: courseId
             }, function(response) {
+                console.log('Enrollment response:', response);
                 if (response.success) {
-                    // Display Bootstrap alert message
+                    // Display success message
                     showAlert('success', response.message);
                     
                     // Hide or disable the Enroll button for that course
@@ -377,6 +406,19 @@
                     // Update stats
                     updateStats();
                     
+                    // Remove the course from available courses section
+                    courseCard.fadeOut(500, function() {
+                        $(this).remove();
+                        // Check if no more courses available
+                        if ($('.student-dashboard .mb-5').last().find('.col-md-6, .col-lg-4').length === 0) {
+                            $('.student-dashboard .mb-5').last().html(`
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> All available courses have been enrolled!
+                                </div>
+                            `);
+                        }
+                    });
+                    
                 } else {
                     // Show error message
                     showAlert('danger', response.message);
@@ -386,6 +428,10 @@
                     button.html('<i class="fas fa-plus"></i> Enroll Now');
                 }
             }, 'json').fail(function(xhr, status, error) {
+                console.error('Enrollment error:', xhr.responseText);
+                console.error('Status:', status);
+                console.error('Error:', error);
+                console.error('Response status:', xhr.status);
                 // Show error message
                 showAlert('danger', 'An error occurred while enrolling. Please try again.');
                 
@@ -421,45 +467,57 @@
         function addToEnrolledCourses(courseId, courseTitle, enrollmentDate) {
             const enrolledCoursesContainer = $('.student-dashboard .mb-5').first();
             
-            // Check if enrolled courses section exists and has courses
-            if (enrolledCoursesContainer.length && enrolledCoursesContainer.find('.row').length) {
-                const newCourseHtml = `
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <h5 class="card-title">${courseTitle}</h5>
-                                <p class="card-text text-muted">Course description will be loaded...</p>
-                                <div class="mb-2">
-                                    <small class="text-muted">
-                                        <i class="fas fa-user"></i> Instructor TBD
-                                    </small>
-                                </div>
-                                <div class="mb-2">
-                                    <small class="text-muted">
-                                        <i class="fas fa-clock"></i> Duration TBD
-                                    </small>
-                                </div>
-                                <div class="mb-2">
-                                    <small class="text-success">
-                                        <i class="fas fa-calendar"></i> Enrolled: ${new Date(enrollmentDate).toLocaleDateString()}
-                                    </small>
-                                </div>
-                                <div class="progress mb-2" style="height: 8px;">
-                                    <div class="progress-bar" role="progressbar" style="width: 0%" 
-                                         aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                                    </div>
-                                </div>
-                                <small class="text-muted">Progress: 0%</small>
+            // Get course details from the original course card
+            const originalCard = $(`.enroll-btn[data-course-id="${courseId}"]`).closest('.col-md-6, .col-lg-4');
+            const courseDescription = originalCard.find('.card-text').text();
+            const courseInstructor = originalCard.find('small:contains("Instructor")').text().replace('Instructor ', '');
+            const courseDuration = originalCard.find('small:contains("Duration")').text().replace('Duration ', '');
+            
+            const newCourseHtml = `
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">${courseTitle}</h5>
+                            <p class="card-text text-muted">${courseDescription}</p>
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-user"></i> ${courseInstructor}
+                                </small>
                             </div>
-                            <div class="card-footer">
-                                <span class="badge bg-success">Active</span>
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock"></i> ${courseDuration}
+                                </small>
                             </div>
+                            <div class="mb-2">
+                                <small class="text-success">
+                                    <i class="fas fa-calendar"></i> Enrolled: ${new Date(enrollmentDate).toLocaleDateString()}
+                                </small>
+                            </div>
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div class="progress-bar" role="progressbar" style="width: 0%" 
+                                     aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                            <small class="text-muted">Progress: 0%</small>
+                        </div>
+                        <div class="card-footer">
+                            <span class="badge bg-success">Active</span>
                         </div>
                     </div>
-                `;
-                
-                // Add to enrolled courses
-                enrolledCoursesContainer.find('.row').append(newCourseHtml);
+                </div>
+            `;
+            
+            // Check if enrolled courses section exists and has courses
+            if (enrolledCoursesContainer.length && enrolledCoursesContainer.find('.row').length) {
+                // Check if there's an alert message (no courses enrolled yet)
+                if (enrolledCoursesContainer.find('.alert').length > 0) {
+                    // Replace the alert with the course
+                    enrolledCoursesContainer.find('.alert').replaceWith(`<div class="row">${newCourseHtml}</div>`);
+                } else {
+                    // Add to existing row
+                    enrolledCoursesContainer.find('.row').append(newCourseHtml);
+                }
             } else {
                 // If no enrolled courses section exists, create it
                 const enrolledSectionHtml = `
@@ -468,38 +526,7 @@
                             <i class="fas fa-book-open"></i> My Enrolled Courses
                         </h3>
                         <div class="row">
-                            <div class="col-md-6 col-lg-4 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h5 class="card-title">${courseTitle}</h5>
-                                        <p class="card-text text-muted">Course description will be loaded...</p>
-                                        <div class="mb-2">
-                                            <small class="text-muted">
-                                                <i class="fas fa-user"></i> Instructor TBD
-                                            </small>
-                                        </div>
-                                        <div class="mb-2">
-                                            <small class="text-muted">
-                                                <i class="fas fa-clock"></i> Duration TBD
-                                            </small>
-                                        </div>
-                                        <div class="mb-2">
-                                            <small class="text-success">
-                                                <i class="fas fa-calendar"></i> Enrolled: ${new Date(enrollmentDate).toLocaleDateString()}
-                                            </small>
-                                        </div>
-                                        <div class="progress mb-2" style="height: 8px;">
-                                            <div class="progress-bar" role="progressbar" style="width: 0%" 
-                                                 aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                                            </div>
-                                        </div>
-                                        <small class="text-muted">Progress: 0%</small>
-                                    </div>
-                                    <div class="card-footer">
-                                        <span class="badge bg-success">Active</span>
-                                    </div>
-                                </div>
-                            </div>
+                            ${newCourseHtml}
                         </div>
                     </div>
                 `;
@@ -517,8 +544,83 @@
             // Update enrolled courses count
             $('.student-dashboard .row.mb-4 .col-md-4:first .card-title').text(enrolledCount);
             
-            // Update available courses count (subtract 1 since one was enrolled)
-            $('.student-dashboard .row.mb-4 .col-md-4:last .card-title').text(availableCount - 1);
+            // Update available courses count
+            $('.student-dashboard .row.mb-4 .col-md-4:last .card-title').text(availableCount);
+        }
+        
+        // Function to load enrolled courses from database
+        function loadEnrolledCourses() {
+            $.get('<?= base_url('course/enrollments') ?>', function(response) {
+                if (response.success && response.enrollments && response.enrollments.length > 0) {
+                    console.log('Loaded enrolled courses:', response.enrollments);
+                    
+                    const enrolledContainer = $('.student-dashboard .mb-5').first();
+                    const enrolledCourseIds = [];
+                    
+                    // Clear "no courses" message if exists
+                    enrolledContainer.find('.alert').remove();
+                    
+                    // Create row if it doesn't exist
+                    if (enrolledContainer.find('.row').length === 0) {
+                        enrolledContainer.append('<div class="row"></div>');
+                    }
+                    
+                    // Clear existing enrolled courses
+                    enrolledContainer.find('.row').html('');
+                    
+                    // Add each enrolled course
+                    response.enrollments.forEach(function(course) {
+                        enrolledCourseIds.push(course.id);
+                        
+                        const courseHtml = `
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title">${course.title}</h5>
+                                        <p class="card-text text-muted">${course.description}</p>
+                                        <div class="mb-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-user"></i> ${course.instructor}
+                                            </small>
+                                        </div>
+                                        <div class="mb-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock"></i> ${course.duration}
+                                            </small>
+                                        </div>
+                                        <div class="mb-2">
+                                            <small class="text-success">
+                                                <i class="fas fa-calendar"></i> Enrolled: ${new Date(course.enrollment_date).toLocaleDateString()}
+                                            </small>
+                                        </div>
+                                        <div class="progress mb-2" style="height: 8px;">
+                                            <div class="progress-bar" role="progressbar" style="width: ${course.progress}%" 
+                                                 aria-valuenow="${course.progress}" aria-valuemin="0" aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">Progress: ${course.progress}%</small>
+                                    </div>
+                                    <div class="card-footer">
+                                        <span class="badge bg-success">${course.status}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        enrolledContainer.find('.row').append(courseHtml);
+                    });
+                    
+                    // Remove enrolled courses from available courses
+                    enrolledCourseIds.forEach(function(courseId) {
+                        $(`.enroll-btn[data-course-id="${courseId}"]`).closest('.col-md-6, .col-lg-4').remove();
+                    });
+                    
+                    // Update stats
+                    updateStats();
+                }
+            }, 'json').fail(function(xhr, status, error) {
+                console.error('Failed to load enrolled courses:', error);
+            });
         }
     });
     </script>

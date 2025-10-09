@@ -1,7 +1,19 @@
 <?php
-// Get current user role and login status
-$isLoggedIn = session('logged_in') ?? false;
-$userRole = session('role') ?? '';
+// Get current user role and login status with strict checking
+$isLoggedIn = false;
+$userRole = '';
+
+// Strict session validation - all conditions must be met
+$loggedIn = session('logged_in');
+$userID = session('userID');
+$role = session('role');
+
+// Only consider user logged in if ALL session data is present and valid
+if ($loggedIn === true && !empty($userID) && !empty($role) && is_numeric($userID)) {
+    $isLoggedIn = true;
+    $userRole = $role;
+}
+
 $currentPage = $page ?? '';
 ?>
 
@@ -21,6 +33,7 @@ $currentPage = $page ?? '';
                     <li><a class="nav-link" href="<?= base_url('student/courses') ?>">Courses</a></li>
                     <li><a class="nav-link" href="<?= base_url('student/assignments') ?>">Assignments</a></li>
                     <li><a class="nav-link" href="<?= base_url('student/grades') ?>">Grades</a></li>
+                    <li><a class="nav-link" href="<?= base_url('logout') ?>">Logout</a></li>
                 <?php elseif ($userRole === 'admin'): ?>
                     <!-- Admin Navigation - Centered -->
                     <li><a class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('dashboard') ?>">Dashboard</a></li>
@@ -28,6 +41,7 @@ $currentPage = $page ?? '';
                     <li><a class="nav-link" href="<?= base_url('admin/courses') ?>">Courses</a></li>
                     <li><a class="nav-link" href="<?= base_url('admin/reports') ?>">Reports</a></li>
                     <li><a class="nav-link" href="<?= base_url('admin/settings') ?>">Settings</a></li>
+                    <li><a class="nav-link" href="<?= base_url('logout') ?>">Logout</a></li>
                 <?php elseif ($userRole === 'instructor' || $userRole === 'teacher'): ?>
                     <!-- Teacher Navigation - Centered -->
                     <li><a class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('dashboard') ?>">Dashboard</a></li>
@@ -35,6 +49,7 @@ $currentPage = $page ?? '';
                     <li><a class="nav-link" href="<?= base_url('teacher/students') ?>">Students</a></li>
                     <li><a class="nav-link" href="<?= base_url('teacher/create') ?>">Create</a></li>
                     <li><a class="nav-link" href="<?= base_url('teacher/analytics') ?>">Lessons</a></li>
+                    <li><a class="nav-link" href="<?= base_url('logout') ?>">Logout</a></li>
                 <?php else: ?>
                     <!-- Other roles navigation -->
                     <li><a class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('dashboard') ?>">Dashboard</a></li>
