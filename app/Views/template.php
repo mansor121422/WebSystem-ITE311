@@ -388,7 +388,8 @@
             console.log('Course ID:', courseId);
             
             $.post('<?= base_url('course/enroll') ?>', {
-                course_id: courseId
+                course_id: courseId,
+                <?= csrf_token() ?>: '<?= csrf_hash() ?>'
             }, function(response) {
                 console.log('Enrollment response:', response);
                 if (response.success) {

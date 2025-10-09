@@ -26,8 +26,9 @@ class Course extends BaseController
         if (!session()->get('logged_in')) {
             return $this->response->setJSON([
                 'success' => false,
-                'message' => 'You must be logged in to enroll in courses.'
-            ]);
+                'message' => 'You must be logged in to enroll in courses.',
+                'error_code' => 'UNAUTHORIZED'
+            ])->setStatusCode(401);
         }
 
         // Check if user is a student (only students can enroll)
@@ -35,29 +36,38 @@ class Course extends BaseController
         if ($userRole !== 'student') {
             return $this->response->setJSON([
                 'success' => false,
-                'message' => 'Only students can enroll in courses.'
-            ]);
+                'message' => 'Only students can enroll in courses.',
+                'error_code' => 'FORBIDDEN'
+            ])->setStatusCode(403);
         }
 
         // Get course_id from POST request
         $courseId = $this->request->getPost('course_id');
+        
+        // SECURITY: Use session user ID only - never trust client-supplied user ID
         $userId = session('userID');
         
-        // Validate user ID
-        if (empty($userId)) {
+        // Validate user ID from session
+        if (empty($userId) || !is_numeric($userId)) {
             return $this->response->setJSON([
                 'success' => false,
-                'message' => 'User session invalid. Please logout and login again.'
-            ]);
+                'message' => 'User session invalid. Please logout and login again.',
+                'error_code' => 'INVALID_SESSION'
+            ])->setStatusCode(401);
         }
         
-        // Validate course_id
-        if (empty($courseId) || !is_numeric($courseId)) {
+        // Validate course_id (INPUT VALIDATION)
+        if (empty($courseId) || !is_numeric($courseId) || $courseId < 1) {
             return $this->response->setJSON([
                 'success' => false,
-                'message' => 'Invalid course ID provided.'
-            ]);
+                'message' => 'Invalid course ID provided.',
+                'error_code' => 'INVALID_INPUT'
+            ])->setStatusCode(400);
         }
+        
+        // Convert to integer to prevent SQL injection
+        $courseId = (int) $courseId;
+        $userId = (int) $userId;
         
         // Verify user exists in database
         $db = \Config\Database::connect();
@@ -71,20 +81,19 @@ class Course extends BaseController
 
         // Define available courses (matching the hardcoded ones in Auth controller)
         $availableCourses = [
-            1 => ['id' => 1, 'title' => 'Introduction to Programming', 'description' => 'Learn the fundamentals of programming with hands-on exercises and real-world projects.'],
-            2 => ['id' => 2, 'title' => 'Web Development Basics', 'description' => 'Master HTML, CSS, and JavaScript to build responsive and interactive websites.'],
-            3 => ['id' => 3, 'title' => 'Database Management', 'description' => 'Learn SQL, database design, and data management best practices.'],
-            4 => ['id' => 4, 'title' => 'Mobile App Development', 'description' => 'Create mobile applications using modern frameworks and development tools.'],
-            5 => ['id' => 5, 'title' => 'Cybersecurity Fundamentals', 'description' => 'Understand security threats, vulnerabilities, and protection strategies.'],
-            6 => ['id' => 6, 'title' => 'Data Science and Analytics', 'description' => 'Explore data analysis, machine learning, and statistical modeling techniques.']
+            1 => ['id' => 1, 'title' => 'Introduction to Programming', 'description' => 'Learn the fundamentals of programming with Python'],
+            2 => ['id' => 2, 'title' => 'Web Development Basics', 'description' => 'HTML, CSS, and JavaScript fundamentals'],
+            3 => ['id' => 3, 'title' => 'Database Management', 'description' => 'SQL and database design principles'],
+            4 => ['id' => 4, 'title' => 'Data Structures & Algorithms', 'description' => 'Advanced programming concepts and problem solving']
         ];
         
-        // Check if course exists
+        // INPUT VALIDATION: Check if course exists
         if (!isset($availableCourses[$courseId])) {
             return $this->response->setJSON([
                 'success' => false,
-                'message' => 'Course not found.'
-            ]);
+                'message' => 'Course not found.',
+                'error_code' => 'COURSE_NOT_FOUND'
+            ])->setStatusCode(404);
         }
         
         $course = $availableCourses[$courseId];
