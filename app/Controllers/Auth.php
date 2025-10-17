@@ -137,9 +137,25 @@ class Auth extends BaseController
             
             session()->set($sessionData);
 
-            // Unified dashboard redirection for all roles
+            // Task 3: Role-based redirection for enhanced user experience
             session()->setFlashdata('success', 'Welcome back, ' . $user['name'] . '!');
-            return redirect()->to('/dashboard');
+            
+            // Redirect based on user role
+            $role = strtolower($user['role']);
+            
+            if ($role === 'student') {
+                // Students redirected to announcements
+                return redirect()->to('/announcements');
+            } elseif ($role === 'teacher') {
+                // Teachers redirected to teacher dashboard
+                return redirect()->to('/teacher/dashboard');
+            } elseif ($role === 'admin') {
+                // Admins redirected to admin dashboard
+                return redirect()->to('/admin/dashboard');
+            } else {
+                // Default fallback (if role not recognized)
+                return redirect()->to('/dashboard');
+            }
         }
 
         // For GET requests, just load the login view

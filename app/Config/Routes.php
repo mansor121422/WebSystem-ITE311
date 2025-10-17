@@ -29,3 +29,7 @@ $routes->get('course/stats', 'Course::getStats');
 $routes->get('announcements', 'Announcement::index');
 $routes->get('announcements/create', 'Announcement::create');
 $routes->post('announcements/create', 'Announcement::create');
+
+// Task 3: Role-Based Dashboard Routes
+$routes->get('teacher/dashboard', 'Teacher::dashboard');
+$routes->get('admin/dashboard', 'Admin::dashboard');
