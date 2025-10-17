@@ -27,9 +27,36 @@ $routes->get('course/stats', 'Course::getStats');
 
 // Announcement Routes
 $routes->get('announcements', 'Announcement::index');
-$routes->get('announcements/create', 'Announcement::create');
-$routes->post('announcements/create', 'Announcement::create');
 
-// Task 3: Role-Based Dashboard Routes
-$routes->get('teacher/dashboard', 'Teacher::dashboard');
-$routes->get('admin/dashboard', 'Admin::dashboard');
+// Task 4: Protected Routes with RoleAuth Filter
+
+// Admin Routes - Protected by RoleAuth filter
+$routes->group('admin', ['filter' => 'roleauth'], function($routes) {
+    $routes->get('dashboard', 'Admin::dashboard');
+    $routes->get('users', 'Admin::users'); // Future route
+    $routes->get('courses', 'Admin::courses'); // Future route
+    $routes->get('reports', 'Admin::reports'); // Future route
+    $routes->get('settings', 'Admin::settings'); // Future route
+});
+
+// Admin Announcement Routes - Protected
+$routes->group('announcements', ['filter' => 'roleauth'], function($routes) {
+    $routes->get('create', 'Announcement::create');
+    $routes->post('create', 'Announcement::create');
+});
+
+// Teacher Routes - Protected by RoleAuth filter
+$routes->group('teacher', ['filter' => 'roleauth'], function($routes) {
+    $routes->get('dashboard', 'Teacher::dashboard');
+    $routes->get('courses', 'Teacher::courses'); // Future route
+    $routes->get('students', 'Teacher::students'); // Future route
+    $routes->get('create', 'Teacher::create'); // Future route
+    $routes->get('analytics', 'Teacher::analytics'); // Future route
+});
+
+// Student Routes - Protected by RoleAuth filter  
+$routes->group('student', ['filter' => 'roleauth'], function($routes) {
+    $routes->get('courses', 'Student::courses'); // Future route
+    $routes->get('assignments', 'Student::assignments'); // Future route
+    $routes->get('grades', 'Student::grades'); // Future route
+});
