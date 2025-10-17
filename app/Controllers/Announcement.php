@@ -25,8 +25,9 @@ class Announcement extends BaseController
             return redirect()->to('/login');
         }
 
-        // Fetch all announcements from database, ordered by date posted (newest first)
-        $announcements = $this->announcementModel->orderBy('date_posted', 'DESC')->findAll();
+        // Fetch all announcements from database, ordered by created_at (newest first)
+        // Task 2 Requirement: Order by created_at in descending order
+        $announcements = $this->announcementModel->orderBy('created_at', 'DESC')->findAll();
 
         // Prepare data for view
         $data = [
@@ -70,12 +71,16 @@ class Announcement extends BaseController
                 return redirect()->back()->withInput();
             }
 
-            // Prepare announcement data
+            // Prepare announcement data with current timestamp
+            $currentTime = date('Y-m-d H:i:s');
+            
             $announcementData = [
                 'title' => $title,
                 'content' => $content,
                 'posted_by' => session('userID'),
-                'date_posted' => date('Y-m-d H:i:s')
+                'date_posted' => $currentTime,
+                'created_at' => $currentTime,  // Capture real-time when posted
+                'updated_at' => $currentTime
             ];
 
             // Insert into database

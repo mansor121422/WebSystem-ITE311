@@ -15,6 +15,7 @@ class AnnouncementSeeder extends Seeder
         $adminId = $admin ? $admin->id : 1;
 
         // Sample announcements data
+        // Task 2 Requirement: At least 2 sample announcements with required fields
         $data = [
             [
                 'title' => 'Welcome to the LMS System!',

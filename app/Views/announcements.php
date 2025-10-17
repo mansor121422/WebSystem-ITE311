@@ -43,7 +43,7 @@
                             <div class="announcement-meta text-muted">
                                 <small>
                                     <i class="fas fa-calendar-alt"></i>
-                                    Posted on: <?= date('F j, Y, g:i A', strtotime($announcement['date_posted'])) ?>
+                                    Posted on: <?= date('F j, Y, g:i A', strtotime($announcement['created_at'])) ?>
                                 </small>
                             </div>
                         </div>
