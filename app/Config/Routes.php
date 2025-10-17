@@ -24,3 +24,8 @@ $routes->get('course/enrollments', 'Course::getUserEnrollments');
 $routes->get('course/user-courses', 'Course::getUserCourses');
 $routes->post('course/update-progress', 'Course::updateProgress');
 $routes->get('course/stats', 'Course::getStats');
+
+// Announcement Routes
+$routes->get('announcements', 'Announcement::index');
+$routes->get('announcements/create', 'Announcement::create');
+$routes->post('announcements/create', 'Announcement::create');

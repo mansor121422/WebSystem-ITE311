@@ -31,12 +31,14 @@ $currentPage = $page ?? '';
                     <!-- Student Navigation - Centered -->
                     <li><a class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('dashboard') ?>">Dashboard</a></li>
                     <li><a class="nav-link" href="<?= base_url('student/courses') ?>">Courses</a></li>
+                    <li><a class="nav-link" href="<?= base_url('announcements') ?>">Announcements</a></li>
                     <li><a class="nav-link" href="<?= base_url('student/assignments') ?>">Assignments</a></li>
                     <li><a class="nav-link" href="<?= base_url('student/grades') ?>">Grades</a></li>
                     <li><a class="nav-link" href="<?= base_url('logout') ?>">Logout</a></li>
                 <?php elseif ($userRole === 'admin'): ?>
                     <!-- Admin Navigation - Centered -->
                     <li><a class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('dashboard') ?>">Dashboard</a></li>
+                    <li><a class="nav-link" href="<?= base_url('announcements') ?>">Announcements</a></li>
                     <li><a class="nav-link" href="<?= base_url('admin/users') ?>">Users</a></li>
                     <li><a class="nav-link" href="<?= base_url('admin/courses') ?>">Courses</a></li>
                     <li><a class="nav-link" href="<?= base_url('admin/reports') ?>">Reports</a></li>
@@ -46,6 +48,7 @@ $currentPage = $page ?? '';
                     <!-- Teacher Navigation - Centered -->
                     <li><a class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('dashboard') ?>">Dashboard</a></li>
                     <li><a class="nav-link" href="<?= base_url('teacher/courses') ?>">Courses</a></li>
+                    <li><a class="nav-link" href="<?= base_url('announcements') ?>">Announcements</a></li>
                     <li><a class="nav-link" href="<?= base_url('teacher/students') ?>">Students</a></li>
                     <li><a class="nav-link" href="<?= base_url('teacher/create') ?>">Create</a></li>
                     <li><a class="nav-link" href="<?= base_url('teacher/analytics') ?>">Lessons</a></li>
