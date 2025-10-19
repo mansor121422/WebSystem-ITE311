@@ -33,6 +33,8 @@ $routes->get('materials/view/(:num)', 'Materials::viewCourseMaterials/$1');
 $routes->get('materials/upload/(:num)', 'Materials::upload/$1');
 $routes->get('materials/upload', 'Materials::upload');
 $routes->post('materials/upload', 'Materials::upload');
+$routes->post('materials/upload/(:num)', 'Materials::upload/$1');
+$routes->get('materials/delete/(:num)', 'Materials::delete/$1');
 $routes->post('materials/delete/(:num)', 'Materials::delete/$1');
 $routes->get('materials/download/(:num)', 'Materials::download/$1');
 
@@ -45,6 +47,10 @@ $routes->group('admin', ['filter' => 'roleauth'], function($routes) {
     $routes->get('courses', 'Admin::courses'); // Future route
     $routes->get('reports', 'Admin::reports'); // Future route
     $routes->get('settings', 'Admin::settings'); // Future route
+    
+    // Admin Material Upload Routes
+    $routes->get('course/(:num)/upload', 'Materials::upload/$1');
+    $routes->post('course/(:num)/upload', 'Materials::upload/$1');
 });
 
 // Admin Announcement Routes - Protected
