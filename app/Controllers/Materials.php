@@ -172,36 +172,67 @@ class Materials extends BaseController
      */
     public function download($material_id = null)
     {
-        // Check if user is logged in
+        // Step 1: Check if user is logged in
         if (!session()->get('logged_in')) {
             return redirect()->to('/login')->with('error', 'Please login to continue.');
         }
 
+        // Step 2: Validate material ID
         if (!$material_id) {
             return redirect()->back()->with('error', 'Material ID is required.');
         }
 
-        // Get material record
+        // Step 3: Retrieve the file path from database using material_id
         $material = $this->materialModel->find($material_id);
 
         if (!$material) {
             return redirect()->back()->with('error', 'Material not found.');
         }
 
-        // TODO: Add enrollment check - verify if user is enrolled in the course
-        // For now, allow admin, teacher, and student roles to download
-        $userRole = session()->get('role');
-        if (!in_array($userRole, ['admin', 'teacher', 'student'])) {
-            return redirect()->back()->with('error', 'You do not have permission to download this material.');
+        // Get user information
+        $userId = session()->get('userID');
+        $userRole = strtolower(session()->get('role'));
+
+        // Step 4: Check enrollment and permissions
+        // Admin and Teacher can download any material without enrollment check
+        if (!in_array($userRole, ['admin', 'teacher'])) {
+            // For students, verify they are enrolled in the course
+            if ($userRole === 'student') {
+                $db = \Config\Database::connect();
+                
+                // Check if student is enrolled in the course associated with this material
+                $enrollmentQuery = $db->query("
+                    SELECT id 
+                    FROM enrollments 
+                    WHERE user_id = ? AND course_id = ? AND status = 'active'
+                    LIMIT 1
+                ", [$userId, $material['course_id']]);
+                
+                $enrollment = $enrollmentQuery->getRowArray();
+                
+                if (!$enrollment) {
+                    return redirect()->back()->with('error', 'You must be enrolled in this course to download materials.');
+                }
+            } else {
+                // Unknown role - deny access
+                return redirect()->back()->with('error', 'You do not have permission to download this material.');
+            }
         }
 
-        // Check if file exists
+        // Step 5: Check if file exists on server
         if (!file_exists($material['file_path'])) {
-            return redirect()->back()->with('error', 'File not found on server.');
+            log_message('error', "Material file not found: {$material['file_path']} (Material ID: {$material_id})");
+            return redirect()->back()->with('error', 'File not found on server. Please contact the administrator.');
         }
 
-        // Download the file
-        return $this->response->download($material['file_path'], null)->setFileName($material['file_name']);
+        // Step 6: Use CodeIgniter's Response class to force secure file download
+        try {
+            return $this->response->download($material['file_path'], null)
+                                  ->setFileName($material['file_name']);
+        } catch (\Exception $e) {
+            log_message('error', "Download failed for material {$material_id}: " . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to download file. Please try again.');
+        }
     }
 
     /**
