@@ -105,13 +105,14 @@
                                             </small>
                                         </div>
                                     </div>
-                                    <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <div class="card-footer">
                                         <button class="btn btn-primary btn-sm enroll-btn" 
                                                 data-course-id="<?= $course['id'] ?>"
                                                 data-course-title="<?= esc($course['title']) ?>">
                                             <i class="fas fa-plus"></i> Enroll Now
                                         </button>
-                                        <a href="<?= base_url('materials/view/' . $course['id']) ?>" class="btn btn-sm btn-outline-secondary">
+                                        <a href="<?= base_url('materials/view/' . $course['id']) ?>" 
+                                           class="btn btn-primary btn-sm">
                                             <i class="fas fa-file-alt"></i> Materials
                                         </a>
                                     </div>
@@ -213,4 +214,13 @@
     </div>
     <?php endif; ?>
 </div>
+
+<style>
+    /* Style buttons in card footer */
+    .card-footer {
+        display: flex;
+        gap: 0.5rem;
+    }
+</style>
+
 <?= $this->endSection() ?>

@@ -23,7 +23,7 @@ class Materials extends BaseController
     public function upload($course_id = null)
     {
         // Check if user is logged in and has appropriate role (admin/teacher)
-        if (!session()->has('user_id')) {
+        if (!session()->get('logged_in')) {
             return redirect()->to('/login')->with('error', 'Please login to continue.');
         }
 
@@ -113,7 +113,7 @@ class Materials extends BaseController
     public function delete($material_id = null)
     {
         // Check if user is logged in and has appropriate role (admin/teacher)
-        if (!session()->has('user_id')) {
+        if (!session()->get('logged_in')) {
             return $this->response->setJSON([
                 'success' => false,
                 'message' => 'Please login to continue.'
@@ -173,7 +173,7 @@ class Materials extends BaseController
     public function download($material_id = null)
     {
         // Check if user is logged in
-        if (!session()->has('user_id')) {
+        if (!session()->get('logged_in')) {
             return redirect()->to('/login')->with('error', 'Please login to continue.');
         }
 
@@ -213,7 +213,7 @@ class Materials extends BaseController
     public function viewCourseMaterials($course_id = null)
     {
         // Check if user is logged in
-        if (!session()->has('user_id')) {
+        if (!session()->get('logged_in')) {
             return redirect()->to('/login')->with('error', 'Please login to continue.');
         }
 
