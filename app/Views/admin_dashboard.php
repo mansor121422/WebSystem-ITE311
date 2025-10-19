@@ -52,6 +52,67 @@
             </div>
         </div>
 
+        <!-- Course Materials Management Section -->
+        <div class="courses-section">
+            <h3><i class="fas fa-book"></i> Course Materials Management</h3>
+            <div class="course-grid">
+                <?php
+                $courses = [
+                    ['id' => 1, 'title' => 'Introduction to Programming', 'color' => '#3498db'],
+                    ['id' => 2, 'title' => 'Web Development Basics', 'color' => '#2ecc71'],
+                    ['id' => 3, 'title' => 'Database Management', 'color' => '#e67e22'],
+                    ['id' => 4, 'title' => 'Data Structures & Algorithms', 'color' => '#9b59b6']
+                ];
+                foreach($courses as $course): ?>
+                    <div class="course-card" style="border-left-color: <?= $course['color'] ?>;">
+                        <h4><?= esc($course['title']) ?></h4>
+                        <div class="course-actions">
+                            <a href="<?= base_url('materials/view/' . $course['id']) ?>" class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye"></i> View Materials
+                            </a>
+                            <a href="<?= base_url('materials/upload/' . $course['id']) ?>" class="btn btn-sm btn-success">
+                                <i class="fas fa-upload"></i> Upload
+                            </a>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <div class="dashboard-info" style="display: none;">
+            <div class="info-card">
+                <div class="info-icon">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="info-content">
+                    <h3>Your Information</h3>
+                    <p><strong>Name:</strong> <?= esc($user['name']) ?></p>
+                    <p><strong>Email:</strong> <?= esc($user['email']) ?></p>
+                    <p><strong>Role:</strong> <?= ucfirst(esc($user['role'])) ?></p>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-icon">
+                    <i class="fas fa-cogs"></i>
+                </div>
+                <div class="info-content">
+                    <h3>Quick Access</h3>
+                    <div class="quick-links">
+                        <a href="<?= base_url('announcements') ?>" class="btn btn-primary">
+                            <i class="fas fa-bullhorn"></i> View Announcements
+                        </a>
+                        <a href="<?= base_url('announcements/create') ?>" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Create Announcement
+                        </a>
+                        <a href="<?= base_url('dashboard') ?>" class="btn btn-primary">
+                            <i class="fas fa-th-large"></i> Full Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="dashboard-message">
             <div class="message-box admin-message">
                 <i class="fas fa-crown"></i>
@@ -185,6 +246,55 @@
         margin: 0;
         color: #2c3e50;
         line-height: 1.6;
+    }
+
+    .courses-section {
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 2px solid #e9ecef;
+    }
+
+    .courses-section h3 {
+        color: #2c3e50;
+        margin-bottom: 1.5rem;
+        font-size: 1.5rem;
+    }
+
+    .course-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .course-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.5rem;
+        border-left: 4px solid #3498db;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .course-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .course-card h4 {
+        color: #2c3e50;
+        margin-bottom: 1rem;
+        font-size: 1.1rem;
+    }
+
+    .course-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .course-actions .btn {
+        flex: 1;
+        min-width: 100px;
     }
 
     @media (max-width: 768px) {

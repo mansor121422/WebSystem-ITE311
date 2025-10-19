@@ -28,6 +28,14 @@ $routes->get('course/stats', 'Course::getStats');
 // Announcement Routes
 $routes->get('announcements', 'Announcement::index');
 
+// Materials Routes
+$routes->get('materials/view/(:num)', 'Materials::viewCourseMaterials/$1');
+$routes->get('materials/upload/(:num)', 'Materials::upload/$1');
+$routes->get('materials/upload', 'Materials::upload');
+$routes->post('materials/upload', 'Materials::upload');
+$routes->post('materials/delete/(:num)', 'Materials::delete/$1');
+$routes->get('materials/download/(:num)', 'Materials::download/$1');
+
 // Task 4: Protected Routes with RoleAuth Filter
 
 // Admin Routes - Protected by RoleAuth filter

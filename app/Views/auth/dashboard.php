@@ -60,10 +60,13 @@
                                         </div>
                                         <small class="text-muted">Progress: <?= $enrollment['progress'] ?>%</small>
                                     </div>
-                                    <div class="card-footer">
+                                    <div class="card-footer d-flex justify-content-between align-items-center">
                                         <span class="badge bg-<?= $enrollment['status'] === 'active' ? 'success' : 'secondary' ?>">
                                             <?= ucfirst($enrollment['status']) ?>
                                         </span>
+                                        <a href="<?= base_url('materials/view/' . $enrollment['id']) ?>" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-file-alt"></i> View Materials
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -102,12 +105,15 @@
                                             </small>
                                         </div>
                                     </div>
-                                    <div class="card-footer">
+                                    <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
                                         <button class="btn btn-primary btn-sm enroll-btn" 
                                                 data-course-id="<?= $course['id'] ?>"
                                                 data-course-title="<?= esc($course['title']) ?>">
                                             <i class="fas fa-plus"></i> Enroll Now
                                         </button>
+                                        <a href="<?= base_url('materials/view/' . $course['id']) ?>" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-file-alt"></i> Materials
+                                        </a>
                                     </div>
                                 </div>
                             </div>

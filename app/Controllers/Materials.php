@@ -203,5 +203,48 @@ class Materials extends BaseController
         // Download the file
         return $this->response->download($material['file_path'], null)->setFileName($material['file_name']);
     }
+
+    /**
+     * Display materials for a specific course
+     * 
+     * @param int $course_id
+     * @return mixed
+     */
+    public function viewCourseMaterials($course_id = null)
+    {
+        // Check if user is logged in
+        if (!session()->has('user_id')) {
+            return redirect()->to('/login')->with('error', 'Please login to continue.');
+        }
+
+        if (!$course_id) {
+            return redirect()->back()->with('error', 'Course ID is required.');
+        }
+
+        // TODO: Add enrollment check - verify if user is enrolled in the course (for students)
+        // For now, allow all logged-in users to view materials
+        
+        // Get materials for the course
+        $materials = $this->materialModel->getMaterialsByCourse($course_id);
+
+        // Get course information (if CourseModel exists)
+        $courseTitle = "Course #" . $course_id;
+        if (class_exists('\App\Models\CourseModel')) {
+            $courseModel = new \App\Models\CourseModel();
+            $course = $courseModel->find($course_id);
+            if ($course) {
+                $courseTitle = $course['title'];
+            }
+        }
+
+        $data = [
+            'title' => 'Course Materials',
+            'course_id' => $course_id,
+            'course_title' => $courseTitle,
+            'materials' => $materials
+        ];
+
+        return view('materials/view', $data);
+    }
 }
 
