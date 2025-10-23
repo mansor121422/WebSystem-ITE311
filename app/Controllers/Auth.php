@@ -76,6 +76,17 @@ class Auth extends BaseController
                 $result = $userModel->insert($userData);
                 
                 if ($result) {
+                    // Step 7: Create welcome notification for new user
+                    try {
+                        $notificationModel = new \App\Models\NotificationModel();
+                        $welcomeMessage = "Welcome to our Learning Management System, {$name}! Start exploring courses and announcements.";
+                        $notificationModel->createNotification($result, $welcomeMessage);
+                        log_message('info', "Welcome notification created for new user: {$name}");
+                    } catch (\Exception $e) {
+                        // Don't fail registration if notification creation fails
+                        log_message('error', "Failed to create welcome notification: " . $e->getMessage());
+                    }
+                    
                     // Set flash message and redirect to login
                     session()->setFlashdata('success', 'Registration successful! Please login.');
                     return redirect()->to('/login');
@@ -233,8 +244,45 @@ class Auth extends BaseController
             $data['pendingAssignments'] = 5; // Placeholder
             $data['totalStudents'] = 1; // Placeholder
         } elseif ($role === 'student') {
-            // Use simple hardcoded data to avoid database errors
-            $data['enrolledCourses'] = [];
+            // Get actual enrolled courses from database
+            $courseData = [
+                1 => ['title' => 'Introduction to Programming', 'description' => 'Learn the fundamentals of programming with Python', 'duration' => 480],
+                2 => ['title' => 'Web Development Basics', 'description' => 'HTML, CSS, and JavaScript fundamentals', 'duration' => 360],
+                3 => ['title' => 'Database Management', 'description' => 'SQL and database design principles', 'duration' => 600],
+                4 => ['title' => 'Data Structures & Algorithms', 'description' => 'Advanced programming concepts and problem solving', 'duration' => 720]
+            ];
+            
+            // Get enrolled courses from database
+            $db = \Config\Database::connect();
+            $enrolledQuery = $db->query("
+                SELECT course_id, enrollment_date, status, progress
+                FROM enrollments
+                WHERE user_id = ?
+                ORDER BY enrollment_date DESC
+            ", [session('userID')]);
+            
+            $enrollments = $enrolledQuery->getResultArray();
+            
+            // Format enrolled courses data
+            $enrolledCourses = [];
+            foreach ($enrollments as $enrollment) {
+                $courseId = $enrollment['course_id'];
+                if (isset($courseData[$courseId])) {
+                    $course = $courseData[$courseId];
+                    $enrolledCourses[] = [
+                        'id' => $courseId,
+                        'course_title' => $course['title'],
+                        'course_description' => $course['description'],
+                        'course_instructor' => 'Teacher User',
+                        'course_duration' => $course['duration'] . ' minutes',
+                        'enrollment_date' => $enrollment['enrollment_date'],
+                        'status' => $enrollment['status'] ?? 'active',
+                        'progress' => $enrollment['progress'] ?? 0
+                    ];
+                }
+            }
+            
+            $data['enrolledCourses'] = $enrolledCourses;
             
             // Use hardcoded available courses
             $data['availableCourses'] = [

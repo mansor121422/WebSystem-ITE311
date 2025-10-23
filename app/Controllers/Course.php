@@ -5,16 +5,19 @@ namespace App\Controllers;
 use App\Controllers\BaseController;
 use App\Models\CourseModel;
 use App\Models\EnrollmentModel;
+use App\Models\NotificationModel;
 
 class Course extends BaseController
 {
     protected $courseModel;
     protected $enrollmentModel;
+    protected $notificationModel;
 
     public function __construct()
     {
         $this->courseModel = new CourseModel();
         $this->enrollmentModel = new EnrollmentModel();
+        $this->notificationModel = new NotificationModel();
     }
 
     /**
@@ -122,13 +125,46 @@ class Course extends BaseController
         try {
             log_message('info', "About to insert: user_id={$userId}, course_id={$courseId}");
             
+            // First verify that the course exists in the courses table
+            $courseExistsQuery = $db->query("SELECT id FROM courses WHERE id = ?", [$courseId]);
+            if ($courseExistsQuery->getNumRows() == 0) {
+                // If course doesn't exist in database, create it temporarily
+                log_message('warning', "Course {$courseId} not found in database, creating it...");
+                
+                $courseInsertQuery = $db->query("
+                    INSERT IGNORE INTO courses (id, title, description, created_at, updated_at) 
+                    VALUES (?, ?, ?, NOW(), NOW())
+                ", [$courseId, $course['title'], $course['description']]);
+                
+                if ($db->affectedRows() > 0) {
+                    log_message('info', "Course {$courseId} created successfully");
+                } else {
+                    log_message('info', "Course {$courseId} already exists or insert failed");
+                }
+            }
+            
             $insertQuery = $db->query("
-                INSERT INTO enrollments (user_id, course_id, enrollment_date, created_at, updated_at) 
-                VALUES (?, ?, ?, NOW(), NOW())
+                INSERT INTO enrollments (user_id, course_id, enrollment_date, status, progress, created_at, updated_at) 
+                VALUES (?, ?, ?, 'active', 0.00, NOW(), NOW())
             ", [$userId, $courseId, $enrollmentData['enrollment_date']]);
             
             if ($db->affectedRows() > 0) {
                 log_message('info', "Enrollment successful!");
+                
+                // Step 7: Create notification for successful enrollment
+                try {
+                    $notificationMessage = "You have been successfully enrolled in '{$course['title']}'. Welcome to the course!";
+                    $notificationCreated = $this->notificationModel->createNotification($userId, $notificationMessage);
+                    
+                    if ($notificationCreated) {
+                        log_message('info', "Enrollment notification created for user {$userId}");
+                    } else {
+                        log_message('warning', "Failed to create enrollment notification for user {$userId}");
+                    }
+                } catch (\Exception $e) {
+                    // Don't fail the enrollment if notification creation fails
+                    log_message('error', "Notification creation failed: " . $e->getMessage());
+                }
                 
                 return $this->response->setJSON([
                     'success' => true,
@@ -178,6 +214,21 @@ class Course extends BaseController
             'success' => true,
             'courses' => $courses
         ]);
+    }
+
+    /**
+     * Display enrollment fix test page
+     * 
+     * @return mixed
+     */
+    public function enrollmentFixTest()
+    {
+        // Check if user is logged in
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login')->with('error', 'Please login to view the enrollment fix test page.');
+        }
+
+        return view('enrollment_fix_test');
     }
 
     /**

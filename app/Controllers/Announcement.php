@@ -4,14 +4,17 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\AnnouncementModel;
+use App\Models\NotificationModel;
 
 class Announcement extends BaseController
 {
     protected $announcementModel;
+    protected $notificationModel;
 
     public function __construct()
     {
         $this->announcementModel = new AnnouncementModel();
+        $this->notificationModel = new NotificationModel();
     }
 
     /**
@@ -85,6 +88,14 @@ class Announcement extends BaseController
 
             // Insert into database
             if ($this->announcementModel->insert($announcementData)) {
+                // Step 7: Create notifications for all students about new announcement
+                try {
+                    $this->notifyAllStudentsOfNewAnnouncement($title);
+                } catch (\Exception $e) {
+                    // Don't fail the announcement creation if notification creation fails
+                    log_message('error', "Failed to create announcement notifications: " . $e->getMessage());
+                }
+                
                 session()->setFlashdata('success', 'Announcement created successfully!');
                 return redirect()->to('/announcements');
             } else {
@@ -103,6 +114,44 @@ class Announcement extends BaseController
         ];
 
         return view('announcement_create', $data);
+    }
+
+    /**
+     * Step 7: Notify all students about new announcement
+     * 
+     * @param string $announcementTitle
+     * @return void
+     */
+    protected function notifyAllStudentsOfNewAnnouncement($announcementTitle)
+    {
+        // Get all students from the database
+        $db = \Config\Database::connect();
+        $students = $db->query("
+            SELECT id 
+            FROM users 
+            WHERE role = 'student'
+        ")->getResultArray();
+        
+        if (empty($students)) {
+            log_message('info', "No students found to notify about announcement");
+            return;
+        }
+        
+        $notificationMessage = "New announcement posted: '{$announcementTitle}'. Check it out in the announcements section!";
+        
+        $notificationsCreated = 0;
+        foreach ($students as $student) {
+            try {
+                $result = $this->notificationModel->createNotification($student['id'], $notificationMessage);
+                if ($result) {
+                    $notificationsCreated++;
+                }
+            } catch (\Exception $e) {
+                log_message('error', "Failed to create announcement notification for user {$student['id']}: " . $e->getMessage());
+            }
+        }
+        
+        log_message('info', "Created {$notificationsCreated} announcement notifications");
     }
 }
 

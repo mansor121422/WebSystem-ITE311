@@ -3,15 +3,18 @@
 namespace App\Controllers;
 
 use App\Models\MaterialModel;
+use App\Models\NotificationModel;
 use CodeIgniter\HTTP\ResponseInterface;
 
 class Materials extends BaseController
 {
     protected $materialModel;
+    protected $notificationModel;
 
     public function __construct()
     {
         $this->materialModel = new MaterialModel();
+        $this->notificationModel = new NotificationModel();
     }
 
     /**
@@ -93,6 +96,14 @@ class Materials extends BaseController
             ];
 
             if ($this->materialModel->insertMaterial($data)) {
+                // Step 7: Create notifications for students enrolled in this course
+                try {
+                    $this->notifyStudentsOfNewMaterial($courseId, $fileName);
+                } catch (\Exception $e) {
+                    // Don't fail the upload if notification creation fails
+                    log_message('error', "Failed to create material notifications: " . $e->getMessage());
+                }
+                
                 return redirect()->back()->with('success', 'Material uploaded successfully!');
             } else {
                 // Delete uploaded file if database insert fails
@@ -276,6 +287,55 @@ class Materials extends BaseController
         ];
 
         return view('materials/view', $data);
+    }
+
+    /**
+     * Step 7: Notify all students enrolled in a course about new material
+     * 
+     * @param int $courseId
+     * @param string $fileName
+     * @return void
+     */
+    protected function notifyStudentsOfNewMaterial($courseId, $fileName)
+    {
+        // Get course title (using hardcoded data for now)
+        $courseData = [
+            1 => 'Introduction to Programming',
+            2 => 'Web Development Basics',
+            3 => 'Database Management',
+            4 => 'Data Structures & Algorithms'
+        ];
+        
+        $courseTitle = $courseData[$courseId] ?? "Course #$courseId";
+        
+        // Get all students enrolled in this course
+        $db = \Config\Database::connect();
+        $enrolledStudents = $db->query("
+            SELECT DISTINCT user_id 
+            FROM enrollments 
+            WHERE course_id = ? AND status = 'active'
+        ", [$courseId])->getResultArray();
+        
+        if (empty($enrolledStudents)) {
+            log_message('info', "No students enrolled in course {$courseId} to notify");
+            return;
+        }
+        
+        $notificationMessage = "New material '{$fileName}' has been uploaded to your course '{$courseTitle}'. Check it out now!";
+        
+        $notificationsCreated = 0;
+        foreach ($enrolledStudents as $student) {
+            try {
+                $result = $this->notificationModel->createNotification($student['user_id'], $notificationMessage);
+                if ($result) {
+                    $notificationsCreated++;
+                }
+            } catch (\Exception $e) {
+                log_message('error', "Failed to create notification for user {$student['user_id']}: " . $e->getMessage());
+            }
+        }
+        
+        log_message('info', "Created {$notificationsCreated} material notifications for course {$courseId}");
     }
 }
 

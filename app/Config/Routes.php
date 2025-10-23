@@ -28,6 +28,20 @@ $routes->get('course/stats', 'Course::getStats');
 // Announcement Routes
 $routes->get('announcements', 'Announcement::index');
 
+// Notification Routes
+$routes->get('/notifications', 'Notifications::get');
+$routes->post('/notifications/mark_read/(:num)', 'Notifications::mark_as_read/$1');
+
+// Additional notification routes
+$routes->get('notifications/page', 'Notifications::index');
+$routes->get('notifications/api-test', 'Notifications::apiTest');
+$routes->get('notifications/demo', 'Notifications::demo');
+$routes->get('notifications/step7-test', 'Notifications::step7Test');
+$routes->get('notifications/step8-test', 'Notifications::step8Test');
+$routes->get('enrollment-fix-test', 'Course::enrollmentFixTest');
+$routes->post('notifications/mark-all-as-read', 'Notifications::markAllAsRead');
+$routes->get('notifications/create-test', 'Notifications::createTest');
+
 // Materials Routes
 $routes->get('materials/view/(:num)', 'Materials::viewCourseMaterials/$1');
 $routes->get('materials/upload/(:num)', 'Materials::upload/$1');

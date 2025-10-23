@@ -12,38 +12,30 @@ class CourseSeeder extends Seeder
 
         $courses = [
             [
+                'id' => 1,
                 'title'       => 'Introduction to Programming',
-                'description' => 'Learn the fundamentals of programming with hands-on exercises and real-world projects.',
+                'description' => 'Learn the fundamentals of programming with Python',
                 'created_at' => $now,
                 'updated_at' => $now,
             ],
             [
+                'id' => 2,
                 'title'       => 'Web Development Basics',
-                'description' => 'Master HTML, CSS, and JavaScript to build responsive and interactive websites.',
+                'description' => 'HTML, CSS, and JavaScript fundamentals',
                 'created_at' => $now,
                 'updated_at' => $now,
             ],
             [
+                'id' => 3,
                 'title'       => 'Database Management',
-                'description' => 'Learn SQL, database design, and data management best practices.',
+                'description' => 'SQL and database design principles',
                 'created_at' => $now,
                 'updated_at' => $now,
             ],
             [
-                'title'       => 'Mobile App Development',
-                'description' => 'Create mobile applications using modern frameworks and development tools.',
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
-            [
-                'title'       => 'Cybersecurity Fundamentals',
-                'description' => 'Understand security threats, vulnerabilities, and protection strategies.',
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
-            [
-                'title'       => 'Data Science and Analytics',
-                'description' => 'Explore data analysis, machine learning, and statistical modeling techniques.',
+                'id' => 4,
+                'title'       => 'Data Structures & Algorithms',
+                'description' => 'Advanced programming concepts and problem solving',
                 'created_at' => $now,
                 'updated_at' => $now,
             ],
@@ -53,7 +45,14 @@ class CourseSeeder extends Seeder
         $this->db->table('enrollments')->where('id >', 0)->delete();
         $this->db->table('courses')->where('id >', 0)->delete();
 
-        // Insert sample courses
-        $this->db->table('courses')->insertBatch($courses);
+        // Reset auto increment to ensure IDs start from 1
+        $this->db->query('ALTER TABLE courses AUTO_INCREMENT = 1');
+
+        // Insert sample courses individually to preserve IDs
+        foreach ($courses as $course) {
+            $this->db->table('courses')->insert($course);
+        }
+        
+        echo "Inserted " . count($courses) . " courses successfully.\n";
     }
 }

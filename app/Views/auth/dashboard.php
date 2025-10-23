@@ -31,42 +31,35 @@
                 </h3>
                 
                 <?php if (!empty($enrolledCourses)): ?>
-                    <div class="row">
+                    <div class="enrolled-courses-list">
                         <?php foreach ($enrolledCourses as $enrollment): ?>
-                            <div class="col-md-6 col-lg-4 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h5 class="card-title"><?= esc($enrollment['course_title']) ?></h5>
-                                        <p class="card-text text-muted"><?= esc($enrollment['course_description']) ?></p>
-                                        <div class="mb-2">
-                                            <small class="text-muted">
-                                                <i class="fas fa-user"></i> <?= esc($enrollment['course_instructor']) ?>
-                                            </small>
-                                        </div>
-                                        <div class="mb-2">
-                                            <small class="text-muted">
-                                                <i class="fas fa-clock"></i> <?= esc($enrollment['course_duration']) ?>
-                                            </small>
-                                        </div>
-                                        <div class="mb-2">
-                                            <small class="text-success">
-                                                <i class="fas fa-calendar"></i> Enrolled: <?= date('M d, Y', strtotime($enrollment['enrollment_date'])) ?>
-                                            </small>
-                                        </div>
-                                        <div class="progress mb-2" style="height: 8px;">
-                                            <div class="progress-bar" role="progressbar" style="width: <?= $enrollment['progress'] ?>%" 
-                                                 aria-valuenow="<?= $enrollment['progress'] ?>" aria-valuemin="0" aria-valuemax="100">
-                                            </div>
-                                        </div>
-                                        <small class="text-muted">Progress: <?= $enrollment['progress'] ?>%</small>
-                                    </div>
-                                    <div class="card-footer d-flex justify-content-between align-items-center">
-                                        <span class="badge bg-<?= $enrollment['status'] === 'active' ? 'success' : 'secondary' ?>">
+                            <div class="enrolled-course-item mb-4 p-4 border rounded bg-white">
+                                <div class="course-header mb-3">
+                                    <h5 class="course-title mb-2"><?= esc($enrollment['course_title']) ?></h5>
+                                    <p class="course-description text-muted mb-3"><?= esc($enrollment['course_description']) ?></p>
+                                </div>
+                                
+                                <div class="course-info mb-3">
+                                    <span class="enrollment-info text-muted">
+                                        <i class="fas fa-calendar"></i> Enrolled: <?= date('M d, Y', strtotime($enrollment['enrollment_date'])) ?>
+                                        <span class="badge bg-<?= $enrollment['status'] === 'active' ? 'success' : 'secondary' ?> ms-2">
                                             <?= ucfirst($enrollment['status']) ?>
                                         </span>
-                                        <a href="<?= base_url('materials/view/' . $enrollment['id']) ?>" class="btn btn-sm btn-primary">
-                                            <i class="fas fa-file-alt"></i> View Materials
-                                        </a>
+                                    </span>
+                                </div>
+                                
+                                <div class="course-actions mb-3">
+                                    <a href="<?= base_url('materials/view/' . $enrollment['id']) ?>" class="btn btn-primary">
+                                        <i class="fas fa-download"></i> View Materials
+                                    </a>
+                                </div>
+                                
+                                <div class="course-progress">
+                                    <small class="text-muted"><?= $enrollment['progress'] ?>% Complete</small>
+                                    <div class="progress mt-1" style="height: 6px;">
+                                        <div class="progress-bar" role="progressbar" style="width: <?= $enrollment['progress'] ?>%" 
+                                             aria-valuenow="<?= $enrollment['progress'] ?>" aria-valuemin="0" aria-valuemax="100">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -216,7 +209,52 @@
 </div>
 
 <style>
-    /* Style buttons in card footer */
+    /* Enrolled Courses Styling */
+    .enrolled-course-item {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: box-shadow 0.3s ease;
+    }
+    
+    .enrolled-course-item:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .course-title {
+        color: #333;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    .course-description {
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+    
+    .enrollment-info {
+        font-size: 0.9rem;
+    }
+    
+    .course-actions .btn {
+        background-color: #007bff;
+        border-color: #007bff;
+        padding: 8px 16px;
+        font-weight: 500;
+    }
+    
+    .course-actions .btn:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+    }
+    
+    .progress {
+        background-color: #e9ecef;
+    }
+    
+    .progress-bar {
+        background-color: #28a745;
+    }
+    
+    /* Available courses card styling */
     .card-footer {
         display: flex;
         gap: 0.5rem;
