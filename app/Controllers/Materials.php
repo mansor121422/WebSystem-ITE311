@@ -35,11 +35,16 @@ class Materials extends BaseController
             return redirect()->to('/dashboard')->with('error', 'You do not have permission to upload materials.');
         }
 
+        // Handle POST request (file upload)
         if ($this->request->getMethod() === 'post') {
+            log_message('info', '=== POST REQUEST RECEIVED ===');
+            log_message('info', 'POST data: ' . print_r($this->request->getPost(), true));
+            log_message('info', 'FILES data: ' . print_r($_FILES, true));
             return $this->handleUpload();
         }
 
-        // Display upload form
+        // Display upload form for GET request
+        log_message('info', '=== GET REQUEST - DISPLAYING FORM ===');
         $data = [
             'title' => 'Upload Material',
             'course_id' => $course_id
@@ -49,44 +54,85 @@ class Materials extends BaseController
     }
 
     /**
+     * Direct upload handler - bypasses the main upload method
+     * 
+     * @return RedirectResponse
+     */
+    public function do_upload()
+    {
+        log_message('info', '=== DO_UPLOAD METHOD CALLED ===');
+        log_message('info', 'Request method: ' . $this->request->getMethod());
+        log_message('info', 'POST data: ' . print_r($this->request->getPost(), true));
+        log_message('info', 'FILES data: ' . print_r($_FILES, true));
+        
+        // Check if user is logged in and has appropriate role (admin/teacher)
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login')->with('error', 'Please login to continue.');
+        }
+
+        $userRole = session()->get('role');
+        if (!in_array($userRole, ['admin', 'teacher'])) {
+            return redirect()->to('/dashboard')->with('error', 'You do not have permission to upload materials.');
+        }
+        
+        return $this->handleUpload();
+    }
+
+    /**
      * Handle the file upload process
      * 
      * @return RedirectResponse
      */
     protected function handleUpload()
     {
+        log_message('info', '=== HANDLE UPLOAD METHOD CALLED ===');
         $courseId = $this->request->getPost('course_id');
+        log_message('info', 'Course ID from POST: ' . $courseId);
         
-        // Validate the input
-        $validation = \Config\Services::validation();
-        $validation->setRules([
-            'course_id' => 'required|numeric',
-            'file' => [
-                'label' => 'File',
-                'rules' => 'uploaded[file]|max_size[file,10240]|ext_in[file,pdf,doc,docx,ppt,pptx,xls,xlsx,zip,txt]',
-            ],
-        ]);
-
-        if (!$validation->withRequest($this->request)->run()) {
-            return redirect()->back()->withInput()->with('errors', $validation->getErrors());
+        // Validate course ID
+        if (empty($courseId) || !is_numeric($courseId)) {
+            log_message('error', 'Invalid course ID: ' . $courseId);
+            return redirect()->back()->with('error', 'Invalid course ID.');
         }
 
-        // Handle file upload
+        // Get uploaded file
         $file = $this->request->getFile('file');
+        log_message('info', 'File object: ' . print_r($file, true));
+        
+        // Validate file
+        if (!$file->isValid()) {
+            log_message('error', 'File is not valid: ' . $file->getErrorString());
+            return redirect()->back()->with('error', 'File upload failed: ' . $file->getErrorString());
+        }
+        
+        log_message('info', 'File is valid, proceeding with upload...');
+        
+        // Check file size (10MB limit)
+        if ($file->getSize() > 10 * 1024 * 1024) {
+            return redirect()->back()->with('error', 'File size exceeds 10MB limit.');
+        }
+        
+        // Check file extension
+        $allowedExtensions = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'zip', 'txt'];
+        $fileExtension = strtolower($file->getClientExtension());
+        if (!in_array($fileExtension, $allowedExtensions)) {
+            return redirect()->back()->with('error', 'File type not allowed. Allowed types: ' . implode(', ', $allowedExtensions));
+        }
 
-        if ($file->isValid() && !$file->hasMoved()) {
-            $fileName = $file->getClientName();
-            $newFileName = $file->getRandomName();
-            
-            // Create upload directory if it doesn't exist
-            $uploadPath = WRITEPATH . 'uploads/materials/';
-            if (!is_dir($uploadPath)) {
-                mkdir($uploadPath, 0777, true);
-            }
+        // Create upload directory if it doesn't exist
+        $uploadPath = WRITEPATH . 'uploads/materials/';
+        if (!is_dir($uploadPath)) {
+            mkdir($uploadPath, 0777, true);
+        }
 
-            // Move file to upload directory
-            $file->move($uploadPath, $newFileName);
+        // Generate unique filename
+        $fileName = $file->getClientName();
+        $newFileName = $file->getRandomName();
 
+        // Move file to upload directory
+        log_message('info', 'Attempting to move file to: ' . $uploadPath . $newFileName);
+        if ($file->move($uploadPath, $newFileName)) {
+            log_message('info', 'File moved successfully!');
             // Save file info to database
             $data = [
                 'course_id' => $courseId,
@@ -94,9 +140,12 @@ class Materials extends BaseController
                 'file_path' => $uploadPath . $newFileName,
                 'created_at' => date('Y-m-d H:i:s'),
             ];
+            
+            log_message('info', 'Attempting to save to database: ' . print_r($data, true));
 
             if ($this->materialModel->insertMaterial($data)) {
-                // Step 7: Create notifications for students enrolled in this course
+                log_message('info', 'Database insert successful!');
+                // Create notifications for students enrolled in this course
                 try {
                     $this->notifyStudentsOfNewMaterial($courseId, $fileName);
                 } catch (\Exception $e) {
@@ -104,14 +153,17 @@ class Materials extends BaseController
                     log_message('error', "Failed to create material notifications: " . $e->getMessage());
                 }
                 
-                return redirect()->back()->with('success', 'Material uploaded successfully!');
+                log_message('info', 'Upload completed successfully!');
+                return redirect()->to('materials/upload/' . $courseId)->with('success', 'Material uploaded successfully! File: ' . $fileName);
             } else {
+                log_message('error', 'Database insert failed!');
                 // Delete uploaded file if database insert fails
                 unlink($uploadPath . $newFileName);
-                return redirect()->back()->with('error', 'Failed to save material information.');
+                return redirect()->back()->with('error', 'Failed to save material information to database.');
             }
         } else {
-            return redirect()->back()->with('error', 'Failed to upload file.');
+            log_message('error', 'Failed to move file to upload directory.');
+            return redirect()->back()->with('error', 'Failed to move file to upload directory.');
         }
     }
 
@@ -337,5 +389,6 @@ class Materials extends BaseController
         
         log_message('info', "Created {$notificationsCreated} material notifications for course {$courseId}");
     }
+
 }
 

@@ -48,6 +48,7 @@ $routes->get('materials/upload/(:num)', 'Materials::upload/$1');
 $routes->get('materials/upload', 'Materials::upload');
 $routes->post('materials/upload', 'Materials::upload');
 $routes->post('materials/upload/(:num)', 'Materials::upload/$1');
+$routes->post('materials/do_upload', 'Materials::do_upload');
 $routes->get('materials/delete/(:num)', 'Materials::delete/$1');
 $routes->post('materials/delete/(:num)', 'Materials::delete/$1');
 $routes->get('materials/download/(:num)', 'Materials::download/$1');
