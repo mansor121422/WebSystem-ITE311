@@ -140,19 +140,14 @@ $currentPage = $page ?? '';
                         <li class="nav-item"><a class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('dashboard') ?>">Dashboard</a></li>
                         <li class="nav-item"><a class="nav-link" href="<?= base_url('student/courses') ?>">Courses</a></li>
                         <li class="nav-item"><a class="nav-link" href="<?= base_url('announcements') ?>">Announcements</a></li>
-                        <li class="nav-item"><a class="nav-link" href="<?= base_url('student/assignments') ?>">Assignments</a></li>
-                        <li class="nav-item"><a class="nav-link" href="<?= base_url('student/grades') ?>">Grades</a></li>
                     <?php elseif ($userRole === 'admin'): ?>
                         <li class="nav-item"><a class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('dashboard') ?>">Dashboard</a></li>
-                        <li class="nav-item"><a class="nav-link" href="<?= base_url('announcements') ?>">Announcements</a></li>
-                        <li class="nav-item"><a class="nav-link" href="<?= base_url('admin/users') ?>">Users</a></li>
                         <li class="nav-item"><a class="nav-link" href="<?= base_url('admin/courses') ?>">Courses</a></li>
-                        <li class="nav-item"><a class="nav-link" href="<?= base_url('admin/reports') ?>">Reports</a></li>
+                        <li class="nav-item"><a class="nav-link" href="<?= base_url('announcements') ?>">Announcements</a></li>
                     <?php elseif ($userRole === 'instructor' || $userRole === 'teacher'): ?>
                         <li class="nav-item"><a class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('dashboard') ?>">Dashboard</a></li>
                         <li class="nav-item"><a class="nav-link" href="<?= base_url('teacher/courses') ?>">Courses</a></li>
                         <li class="nav-item"><a class="nav-link" href="<?= base_url('announcements') ?>">Announcements</a></li>
-                        <li class="nav-item"><a class="nav-link" href="<?= base_url('teacher/students') ?>">Students</a></li>
                     <?php endif; ?>
                 <?php else: ?>
                     <li class="nav-item"><a class="nav-link <?= $currentPage === 'home' ? 'active' : '' ?>" href="<?= base_url('/') ?>">Home</a></li>

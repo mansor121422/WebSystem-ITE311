@@ -158,9 +158,6 @@
                     <p>Your account is being processed. Please contact an administrator if you need assistance.</p>
                 </div>
                 
-                <div class="logout-section">
-                    <a href="<?= site_url('logout') ?>" class="btn btn-primary">Logout</a>
-                </div>
             </div>
         </div>
         
@@ -201,11 +198,6 @@
         </div>
     <?php endif; ?>
     
-    <?php if($userRole !== 'instructor' && $userRole !== 'teacher'): ?>
-    <div class="text-center mt-4">
-        <a href="<?= site_url('logout') ?>" class="btn btn-primary">Logout</a>
-    </div>
-    <?php endif; ?>
 </div>
 
 <style>
