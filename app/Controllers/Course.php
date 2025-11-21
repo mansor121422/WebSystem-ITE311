@@ -314,4 +314,184 @@ class Course extends BaseController
 
         return view('course/view', $data);
     }
+
+    /**
+     * Search courses
+     * Step 2: Search controller method that accepts GET or POST requests
+     * Uses CodeIgniter's Query Builder with LIKE queries
+     * Returns JSON for AJAX requests or renders view for regular requests
+     */
+    public function search()
+    {
+        // Check if user is logged in
+        if (!session()->get('logged_in')) {
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'You must be logged in to search courses.'
+                ])->setStatusCode(401);
+            }
+            session()->setFlashdata('error', 'You must be logged in to search courses.');
+            return redirect()->to('/login');
+        }
+
+        // Get search term from GET or POST
+        $searchTerm = $this->request->getGet('q') ?? $this->request->getPost('q') ?? '';
+        $searchTerm = trim($searchTerm);
+
+        // Use CodeIgniter's Query Builder to search courses table with LIKE queries
+        $db = \Config\Database::connect();
+        $builder = $db->table('courses');
+
+        if (!empty($searchTerm)) {
+            // Search in title and description using LIKE
+            $builder->groupStart()
+                    ->like('title', $searchTerm)
+                    ->orLike('description', $searchTerm)
+                    ->groupEnd();
+        }
+
+        // Get all courses (or filtered by search term)
+        $courses = $builder->orderBy('title', 'ASC')->get()->getResultArray();
+
+        // Format courses data (matching the hardcoded structure)
+        $courseData = [
+            1 => ['title' => 'Introduction to Programming', 'description' => 'Learn the fundamentals of programming with Python', 'duration' => 480],
+            2 => ['title' => 'Web Development Basics', 'description' => 'HTML, CSS, and JavaScript fundamentals', 'duration' => 360],
+            3 => ['title' => 'Database Management', 'description' => 'SQL and database design principles', 'duration' => 600],
+            4 => ['title' => 'Data Structures & Algorithms', 'description' => 'Advanced programming concepts and problem solving', 'duration' => 720]
+        ];
+
+        // Format results
+        $formattedCourses = [];
+        foreach ($courses as $course) {
+            $courseId = $course['id'];
+            // Use database data if available, otherwise use hardcoded data
+            if (isset($courseData[$courseId])) {
+                $formattedCourses[] = [
+                    'id' => $courseId,
+                    'title' => $course['title'] ?? $courseData[$courseId]['title'],
+                    'description' => $course['description'] ?? $courseData[$courseId]['description'],
+                    'instructor' => 'Teacher User',
+                    'duration' => ($courseData[$courseId]['duration'] ?? 0) . ' minutes'
+                ];
+            } else {
+                // If course exists in DB but not in hardcoded data, use DB data
+                $formattedCourses[] = [
+                    'id' => $course['id'],
+                    'title' => $course['title'],
+                    'description' => $course['description'] ?? '',
+                    'instructor' => 'Teacher User',
+                    'duration' => '0 minutes'
+                ];
+            }
+        }
+
+        // If no courses in database, use hardcoded courses and filter them
+        if (empty($courses)) {
+            foreach ($courseData as $id => $course) {
+                if (empty($searchTerm) || 
+                    stripos($course['title'], $searchTerm) !== false || 
+                    stripos($course['description'], $searchTerm) !== false) {
+                    $formattedCourses[] = [
+                        'id' => $id,
+                        'title' => $course['title'],
+                        'description' => $course['description'],
+                        'instructor' => 'Teacher User',
+                        'duration' => $course['duration'] . ' minutes'
+                    ];
+                }
+            }
+        }
+
+        // Add enrollment button HTML for students (for AJAX responses)
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole === 'student' && $this->request->isAJAX()) {
+            foreach ($formattedCourses as &$course) {
+                $course['enrollButton'] = '<button class="btn btn-primary enroll-btn" ' .
+                    'data-course-id="' . $course['id'] . '" ' .
+                    'data-course-title="' . esc($course['title']) . '">' .
+                    '<i class="fas fa-plus"></i> Enroll Now</button>';
+            }
+        }
+
+        // Return JSON for AJAX requests
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON([
+                'success' => true,
+                'courses' => $formattedCourses,
+                'count' => count($formattedCourses),
+                'search_term' => $searchTerm
+            ]);
+        }
+
+        // Render view for regular requests
+        $data = [
+            'title' => 'Search Courses',
+            'courses' => $formattedCourses,
+            'search_term' => $searchTerm,
+            'page' => 'courses'
+        ];
+
+        return view('courses/index', $data);
+    }
+
+    /**
+     * Display all courses with search interface
+     */
+    public function index()
+    {
+        if (!session()->get('logged_in')) {
+            session()->setFlashdata('error', 'You must be logged in to view courses.');
+            return redirect()->to('/login');
+        }
+
+        // Get all courses
+        $courses = $this->courseModel->getAvailableCourses();
+
+        // Format courses data
+        $courseData = [
+            1 => ['title' => 'Introduction to Programming', 'description' => 'Learn the fundamentals of programming with Python', 'duration' => 480],
+            2 => ['title' => 'Web Development Basics', 'description' => 'HTML, CSS, and JavaScript fundamentals', 'duration' => 360],
+            3 => ['title' => 'Database Management', 'description' => 'SQL and database design principles', 'duration' => 600],
+            4 => ['title' => 'Data Structures & Algorithms', 'description' => 'Advanced programming concepts and problem solving', 'duration' => 720]
+        ];
+
+        // Format results
+        $formattedCourses = [];
+        foreach ($courses as $course) {
+            $courseId = $course['id'];
+            if (isset($courseData[$courseId])) {
+                $formattedCourses[] = [
+                    'id' => $courseId,
+                    'title' => $course['title'] ?? $courseData[$courseId]['title'],
+                    'description' => $course['description'] ?? $courseData[$courseId]['description'],
+                    'instructor' => 'Teacher User',
+                    'duration' => ($courseData[$courseId]['duration'] ?? 0) . ' minutes'
+                ];
+            }
+        }
+
+        // If no courses in database, use hardcoded courses
+        if (empty($formattedCourses)) {
+            foreach ($courseData as $id => $course) {
+                $formattedCourses[] = [
+                    'id' => $id,
+                    'title' => $course['title'],
+                    'description' => $course['description'],
+                    'instructor' => 'Teacher User',
+                    'duration' => $course['duration'] . ' minutes'
+                ];
+            }
+        }
+
+        $data = [
+            'title' => 'All Courses',
+            'courses' => $formattedCourses,
+            'search_term' => '',
+            'page' => 'courses'
+        ];
+
+        return view('courses/index', $data);
+    }
 }
