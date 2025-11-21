@@ -81,11 +81,26 @@ $routes->group('teacher', ['filter' => 'roleauth'], function($routes) {
     $routes->get('students', 'Teacher::students'); // Future route
     $routes->get('create', 'Teacher::create'); // Future route
     $routes->get('analytics', 'Teacher::analytics'); // Future route
+    
+    // Enrollment Routes
+    $routes->get('enroll-student', 'Teacher::enrollStudentPage');
+    $routes->post('enroll-student', 'Teacher::enrollStudent');
+    
+    // Assignment Routes
+    $routes->get('create-assignment', 'Teacher::createAssignment');
+    $routes->post('create-assignment', 'Teacher::createAssignment');
+    $routes->get('assignments', 'Teacher::assignments');
+    $routes->get('view-submissions/(:num)', 'Teacher::viewSubmissions/$1');
+    $routes->post('grade-submission', 'Teacher::gradeSubmission');
+    $routes->get('download-submission/(:num)', 'Teacher::downloadSubmission/$1');
 });
 
 // Student Routes - Protected by RoleAuth filter  
 $routes->group('student', ['filter' => 'roleauth'], function($routes) {
     $routes->get('courses', 'Student::courses'); // Future route
-    $routes->get('assignments', 'Student::assignments'); // Future route
+    $routes->get('assignments', 'Student::assignments');
+    $routes->get('view-assignment/(:num)', 'Student::viewAssignment/$1');
+    $routes->post('submit-assignment', 'Student::submitAssignment');
+    $routes->get('download-submission/(:num)', 'Student::downloadSubmission/$1');
     $routes->get('grades', 'Student::grades'); // Future route
 });
