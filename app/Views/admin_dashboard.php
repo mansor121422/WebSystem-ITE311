@@ -38,6 +38,9 @@
                 <div class="info-content">
                     <h3>Quick Access</h3>
                     <div class="quick-links">
+                        <a href="<?= base_url('admin/users') ?>" class="btn btn-primary">
+                            <i class="fas fa-users"></i> User Management
+                        </a>
                         <a href="<?= base_url('announcements') ?>" class="btn btn-primary">
                             <i class="fas fa-bullhorn"></i> View Announcements
                         </a>
@@ -99,6 +102,9 @@
                 <div class="info-content">
                     <h3>Quick Access</h3>
                     <div class="quick-links">
+                        <a href="<?= base_url('admin/users') ?>" class="btn btn-primary">
+                            <i class="fas fa-users"></i> User Management
+                        </a>
                         <a href="<?= base_url('announcements') ?>" class="btn btn-primary">
                             <i class="fas fa-bullhorn"></i> View Announcements
                         </a>

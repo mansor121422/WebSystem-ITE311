@@ -51,6 +51,49 @@
         </div>
     </div>
 
+    <!-- Recent Submissions Section -->
+    <div class="section-title">
+        <i class="fas fa-file-upload"></i> New Submissions
+    </div>
+    <?php if(empty($recentSubmissions ?? [])): ?>
+        <div class="empty-state-submissions">
+            <i class="fas fa-inbox fa-2x"></i>
+            <p>No new submissions.</p>
+        </div>
+    <?php else: ?>
+        <div class="submissions-list">
+            <?php foreach($recentSubmissions as $submission): ?>
+                <div class="submission-item">
+                    <div class="submission-info">
+                        <div class="submission-header">
+                            <h4><?= esc($submission['assignment_title']) ?></h4>
+                            <span class="submission-status status-<?= strtolower($submission['status']) ?>">
+                                <?= ucfirst(esc($submission['status'])) ?>
+                            </span>
+                        </div>
+                        <div class="submission-details">
+                            <span class="detail-item">
+                                <i class="fas fa-user"></i> <?= esc($submission['student_name']) ?>
+                            </span>
+                            <span class="detail-item">
+                                <i class="fas fa-book"></i> <?= esc($submission['course_title']) ?>
+                            </span>
+                            <span class="detail-item">
+                                <i class="fas fa-clock"></i> <?= date('M d, Y H:i', strtotime($submission['submitted_at'])) ?>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="submission-actions">
+                        <a href="<?= base_url('teacher/view-submissions/' . $submission['assignment_id']) ?>" 
+                           class="btn-view">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
     <!-- Quick Actions - Compact Grid -->
     <div class="section-title">
         <i class="fas fa-bolt"></i> Quick Actions
@@ -370,6 +413,123 @@
     .btn-icon:last-child:hover {
         background: #c8e6c9;
         color: #2e7d32;
+    }
+
+    /* Recent Submissions */
+    .empty-state-submissions {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        color: #6c757d;
+        margin-bottom: 2rem;
+    }
+
+    .empty-state-submissions i {
+        color: #dee2e6;
+        margin-bottom: 0.5rem;
+    }
+
+    .submissions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .submission-item {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-left: 4px solid #3498db;
+        border-radius: 8px;
+        padding: 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: all 0.2s;
+    }
+
+    .submission-item:hover {
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+
+    .submission-info {
+        flex: 1;
+    }
+
+    .submission-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .submission-header h4 {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .submission-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .status-submitted {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-graded {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .submission-details {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .detail-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
+
+    .detail-item i {
+        color: #3498db;
+        font-size: 0.75rem;
+    }
+
+    .submission-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-view {
+        padding: 0.5rem 1rem;
+        background: #3498db;
+        color: white;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: background 0.2s;
+    }
+
+    .btn-view:hover {
+        background: #2980b9;
     }
 
     /* Responsive */

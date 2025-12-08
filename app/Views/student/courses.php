@@ -19,8 +19,20 @@
                 <div class="course-card">
                     <div class="course-header">
                         <h3><?= esc($course['title']) ?></h3>
-                        <span class="course-status <?= $course['status'] ?>"><?= ucfirst($course['status']) ?></span>
+                        <span class="course-status <?= $course['status'] ?>">
+                            <?= ucfirst($course['status']) ?>
+                        </span>
                     </div>
+                    <?php if(isset($course['days_remaining']) && $course['days_remaining'] !== null): ?>
+                        <div class="semester-info">
+                            <i class="fas fa-calendar-alt"></i>
+                            <?php if($course['days_remaining'] > 0): ?>
+                                <span class="days-remaining"><?= $course['days_remaining'] ?> days remaining in semester</span>
+                            <?php else: ?>
+                                <span class="expired">Semester expired - Please re-enroll</span>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                     <div class="course-body">
                         <p class="course-description"><?= esc($course['description']) ?></p>
                         <div class="course-info">
@@ -148,6 +160,36 @@
     .course-status.active {
         background: #d4edda;
         color: #155724;
+    }
+
+    .course-status.expired {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .semester-info {
+        margin: 0.75rem 1.25rem 0;
+        padding: 0.75rem;
+        background: #f8f9fa;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .semester-info i {
+        color: #3498db;
+    }
+
+    .days-remaining {
+        color: #28a745;
+        font-weight: 500;
+    }
+
+    .expired {
+        color: #dc3545;
+        font-weight: 500;
     }
 
     .course-body {

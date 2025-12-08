@@ -59,6 +59,16 @@ class Teacher extends BaseController
             ->where('assignment_submissions.status', 'submitted')
             ->countAllResults();
 
+        // Get recent submissions (last 5)
+        $recentSubmissions = $this->submissionModel->select('assignment_submissions.*, assignments.title as assignment_title, assignments.course_id, courses.title as course_title, users.name as student_name')
+            ->join('assignments', 'assignments.id = assignment_submissions.assignment_id')
+            ->join('courses', 'courses.id = assignments.course_id')
+            ->join('users', 'users.id = assignment_submissions.student_id')
+            ->where('assignments.created_by', $teacherId)
+            ->orderBy('assignment_submissions.submitted_at', 'DESC')
+            ->limit(5)
+            ->findAll();
+
         // Prepare data for view
         $data = [
             'title' => 'Teacher Dashboard - LMS System',
@@ -68,7 +78,8 @@ class Teacher extends BaseController
                 'role' => session('role')
             ],
             'assignmentsCount' => $assignmentsCount,
-            'pendingSubmissions' => $pendingSubmissions
+            'pendingSubmissions' => $pendingSubmissions,
+            'recentSubmissions' => $recentSubmissions
         ];
 
         // Load teacher dashboard view
@@ -117,20 +128,26 @@ class Teacher extends BaseController
             ])->setStatusCode(400);
         }
 
-        // Check if already enrolled
-        if ($this->enrollmentModel->isAlreadyEnrolled($studentId, $courseId)) {
-            return $this->response->setJSON([
-                'success' => false,
-                'message' => 'Student is already enrolled in this course.'
-            ]);
+        // Check if already enrolled or has pending enrollment
+        $existingEnrollment = $this->enrollmentModel->where('user_id', $studentId)
+                                                    ->where('course_id', $courseId)
+                                                    ->first();
+        
+        if ($existingEnrollment) {
+            if (in_array($existingEnrollment['status'], ['active', 'pending'])) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Student already has an active or pending enrollment for this course.'
+                ]);
+            }
         }
 
-        // Enroll the student
+        // Create pending enrollment request
         $enrollmentData = [
             'user_id' => $studentId,
             'course_id' => $courseId,
             'enrollment_date' => date('Y-m-d H:i:s'),
-            'status' => 'active',
+            'status' => 'pending', // Set as pending for student approval
             'progress' => 0.00
         ];
 
@@ -138,15 +155,17 @@ class Teacher extends BaseController
             $result = $this->enrollmentModel->enrollUser($enrollmentData);
             
             if ($result) {
-                // Create notification for student
+                // Create notification for student to accept/reject
                 $course = $this->courseModel->find($courseId);
                 $courseTitle = $course ? $course['title'] : "Course #{$courseId}";
-                $message = "You have been enrolled in '{$courseTitle}' by your teacher.";
+                $teacherName = session('name');
+                // Include enrollment ID in message for easy detection
+                $message = "ENROLLMENT_REQUEST:{$result}|You have a new enrollment request for '{$courseTitle}' from {$teacherName}. Please accept or reject it.";
                 $this->notificationModel->createNotification($studentId, $message);
 
                 return $this->response->setJSON([
                     'success' => true,
-                    'message' => 'Student enrolled successfully!',
+                    'message' => 'Enrollment request sent! Student will be notified to accept or reject.',
                     'student' => [
                         'id' => $student['id'],
                         'name' => $student['name'],
@@ -156,7 +175,7 @@ class Teacher extends BaseController
             } else {
                 return $this->response->setJSON([
                     'success' => false,
-                    'message' => 'Failed to enroll student.'
+                    'message' => 'Failed to create enrollment request.'
                 ]);
             }
         } catch (\Exception $e) {

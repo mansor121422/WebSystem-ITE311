@@ -19,40 +19,61 @@ class Auth extends BaseController
             $password = $this->request->getPost('password');
             $password_confirm = $this->request->getPost('password_confirm');
 
-            // Simple validation
+            // Simple validation - check if fields are empty
             if (empty($name) || empty($email) || empty($password) || empty($password_confirm)) {
                 session()->setFlashdata('error', 'All fields are required.');
                 return view('auth/register');
             }
 
+            // 1. Name Field Validation - Check for invalid characters
+            // Invalid characters: / \ " ' < > { } [ ] ! @ # $ % ^ & * and other special characters
+            // Only allow letters (including accented), spaces, hyphens, and apostrophes for names
+            if (preg_match('/[\/\\\\"\'<>{}[\]!@#$%\^&*]/', $name)) {
+                session()->setFlashdata('error', '🔴 Name contains invalid characters.');
+                return view('auth/register');
+            }
+            
+            // Additional check: Name should contain at least one letter
+            if (!preg_match('/[a-zA-Z]/', $name)) {
+                session()->setFlashdata('error', '🔴 Please enter a valid name (letters and spaces only).');
+                return view('auth/register');
+            }
+
+            // 2. Email Field Validation
+            // Check for invalid special characters in email
+            if (preg_match('/[\/\'"\\\\,;<>]/', $email)) {
+                session()->setFlashdata('error', '🔴 Please enter a valid email address.');
+                return view('auth/register');
+            }
+            
+            // Validate email format using PHP's built-in filter
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                session()->setFlashdata('error', '🔴 Invalid email format.');
+                return view('auth/register');
+            }
+
+            // 3. Password Field Validation
+            // Check for forbidden characters: " ' \ / < >
+            if (preg_match('/["\'\\\\\/<>]/', $password)) {
+                session()->setFlashdata('error', '🔴 Password must not include special characters like / \ " \' < >');
+                return view('auth/register');
+            }
+
+            // Check if passwords match
             if ($password !== $password_confirm) {
                 session()->setFlashdata('error', 'Passwords do not match.');
                 return view('auth/register');
             }
 
-            // Enhanced password validation
+            // Enhanced password validation - minimum security rules
             if (strlen($password) < 8) {
-                session()->setFlashdata('error', 'Password must be at least 8 characters.');
+                session()->setFlashdata('error', '🔴 Password must be at least 8 characters and contain letters and numbers.');
                 return view('auth/register');
             }
 
-            if (!preg_match('/[A-Z]/', $password)) {
-                session()->setFlashdata('error', 'Password must contain at least one uppercase letter.');
-                return view('auth/register');
-            }
-
-            if (!preg_match('/[a-z]/', $password)) {
-                session()->setFlashdata('error', 'Password must contain at least one lowercase letter.');
-                return view('auth/register');
-            }
-
-            if (!preg_match('/[0-9]/', $password)) {
-                session()->setFlashdata('error', 'Password must contain at least one number.');
-                return view('auth/register');
-            }
-
-            if (!preg_match('/[^A-Za-z0-9]/', $password)) {
-                session()->setFlashdata('error', 'Password must contain at least one special character.');
+            // Check if password contains at least one letter and one number
+            if (!preg_match('/[a-zA-Z]/', $password) || !preg_match('/[0-9]/', $password)) {
+                session()->setFlashdata('error', '🔴 Password must be at least 8 characters and contain letters and numbers.');
                 return view('auth/register');
             }
 

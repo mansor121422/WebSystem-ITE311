@@ -170,7 +170,7 @@
                 <div class="dashboard-card">
                     <h4>User Management</h4>
                     <p>Manage users, roles, and permissions</p>
-                    <a href="#" class="btn btn-primary">Manage Users</a>
+                    <a href="<?= base_url('admin/users') ?>" class="btn btn-primary">Manage Users</a>
                 </div>
                 <div class="dashboard-card">
                     <h4>System Settings</h4>

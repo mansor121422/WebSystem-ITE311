@@ -62,7 +62,13 @@ $routes->get('materials/download/(:num)', 'Materials::download/$1');
 // Admin Routes - Protected by RoleAuth filter
 $routes->group('admin', ['filter' => 'roleauth'], function($routes) {
     $routes->get('dashboard', 'Admin::dashboard');
-    $routes->get('users', 'Admin::users'); // Future route
+    $routes->get('users', 'Admin::users');
+    $routes->get('users/create', 'Admin::createUser');
+    $routes->post('users/create', 'Admin::createUser');
+    $routes->get('users/edit/(:num)', 'Admin::editUser/$1');
+    $routes->post('users/edit/(:num)', 'Admin::editUser/$1');
+    $routes->get('users/delete/(:num)', 'Admin::deleteUser/$1');
+    $routes->post('users/delete/(:num)', 'Admin::deleteUser/$1');
     $routes->get('courses', 'Admin::courses'); // Future route
     $routes->get('reports', 'Admin::reports'); // Future route
     $routes->get('settings', 'Admin::settings'); // Future route
@@ -101,7 +107,10 @@ $routes->group('teacher', ['filter' => 'roleauth'], function($routes) {
 
 // Student Routes - Protected by RoleAuth filter  
 $routes->group('student', ['filter' => 'roleauth'], function($routes) {
-    $routes->get('courses', 'Student::courses'); // Future route
+    $routes->get('courses', 'Student::courses');
+    $routes->get('pending-enrollments', 'Student::pendingEnrollments');
+    $routes->post('enrollments/accept/(:num)', 'Student::acceptEnrollment/$1');
+    $routes->post('enrollments/reject/(:num)', 'Student::rejectEnrollment/$1');
     $routes->get('assignments', 'Student::assignments');
     $routes->get('view-assignment/(:num)', 'Student::viewAssignment/$1');
     $routes->post('submit-assignment', 'Student::submitAssignment');

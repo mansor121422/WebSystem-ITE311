@@ -58,6 +58,18 @@ class Student extends BaseController
             $courseId = $enrollment['course_id'];
             if (isset($courseData[$courseId])) {
                 $course = $courseData[$courseId];
+                
+                // Check if enrollment is expired
+                $isExpired = $this->enrollmentModel->isEnrollmentExpired($enrollment);
+                $daysRemaining = null;
+                
+                if (!empty($enrollment['semester_end_date']) && !$isExpired) {
+                    $now = new \DateTime();
+                    $endDate = new \DateTime($enrollment['semester_end_date']);
+                    $diff = $now->diff($endDate);
+                    $daysRemaining = $diff->days;
+                }
+                
                 $enrolledCourses[] = [
                     'id' => $courseId,
                     'title' => $course['title'],
@@ -65,8 +77,10 @@ class Student extends BaseController
                     'instructor' => 'Teacher User',
                     'duration' => $course['duration'] . ' minutes',
                     'enrollment_date' => $enrollment['enrollment_date'],
-                    'status' => $enrollment['status'] ?? 'active',
-                    'progress' => $enrollment['progress'] ?? 0
+                    'semester_end_date' => $enrollment['semester_end_date'] ?? null,
+                    'status' => $isExpired ? 'expired' : ($enrollment['status'] ?? 'active'),
+                    'progress' => $enrollment['progress'] ?? 0,
+                    'days_remaining' => $daysRemaining
                 ];
             }
         }
@@ -77,6 +91,230 @@ class Student extends BaseController
         ];
 
         return view('student/courses', $data);
+    }
+
+    /**
+     * View pending enrollment requests
+     */
+    public function pendingEnrollments()
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'student') {
+            return redirect()->to('/dashboard');
+        }
+
+        $studentId = session('userID');
+
+        // Get all pending enrollments
+        $pendingEnrollments = $this->enrollmentModel->where('user_id', $studentId)
+                                                    ->where('status', 'pending')
+                                                    ->orderBy('enrollment_date', 'DESC')
+                                                    ->findAll();
+
+        // Hardcoded course data
+        $courseData = [
+            1 => ['title' => 'Introduction to Programming', 'description' => 'Learn the fundamentals of programming with Python', 'duration' => 480],
+            2 => ['title' => 'Web Development Basics', 'description' => 'HTML, CSS, and JavaScript fundamentals', 'duration' => 360],
+            3 => ['title' => 'Database Management', 'description' => 'SQL and database design principles', 'duration' => 600],
+            4 => ['title' => 'Data Structures & Algorithms', 'description' => 'Advanced programming concepts and problem solving', 'duration' => 720]
+        ];
+
+        // Format pending enrollments
+        $enrollmentRequests = [];
+        foreach ($pendingEnrollments as $enrollment) {
+            $courseId = $enrollment['course_id'];
+            if (isset($courseData[$courseId])) {
+                $course = $courseData[$courseId];
+                $enrollmentRequests[] = [
+                    'id' => $enrollment['id'],
+                    'course_id' => $courseId,
+                    'title' => $course['title'],
+                    'description' => $course['description'],
+                    'instructor' => 'Teacher User',
+                    'duration' => $course['duration'] . ' minutes',
+                    'enrollment_date' => $enrollment['enrollment_date'],
+                    'status' => $enrollment['status']
+                ];
+            }
+        }
+
+        $data = [
+            'title' => 'Pending Enrollment Requests - Student Dashboard',
+            'enrollments' => $enrollmentRequests
+        ];
+
+        return view('student/pending_enrollments', $data);
+    }
+
+    /**
+     * Accept enrollment request
+     */
+    public function acceptEnrollment($enrollmentId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'You must be logged in.'
+            ])->setStatusCode(401);
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'student') {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Only students can accept enrollments.'
+            ])->setStatusCode(403);
+        }
+
+        if (!$enrollmentId) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Enrollment ID is required.'
+            ])->setStatusCode(400);
+        }
+
+        $studentId = session('userID');
+        $enrollment = $this->enrollmentModel->find($enrollmentId);
+
+        if (!$enrollment) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Enrollment request not found.'
+            ])->setStatusCode(404);
+        }
+
+        // Verify the enrollment belongs to the student and is pending
+        if ($enrollment['user_id'] != $studentId) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Access denied.'
+            ])->setStatusCode(403);
+        }
+
+        if ($enrollment['status'] !== 'pending') {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'This enrollment request is no longer pending.'
+            ])->setStatusCode(400);
+        }
+
+        // Update enrollment status to active
+        $updateData = [
+            'status' => 'active',
+            'enrollment_date' => date('Y-m-d H:i:s') // Update enrollment date to now
+        ];
+
+        // Set semester end date (4 months from now)
+        $semesterEndDate = new \DateTime();
+        $semesterEndDate->modify('+4 months');
+        $updateData['semester_end_date'] = $semesterEndDate->format('Y-m-d H:i:s');
+
+        try {
+            if ($this->enrollmentModel->update($enrollmentId, $updateData)) {
+                // Create success notification
+                $course = $this->enrollmentModel->select('courses.title')
+                                                ->join('courses', 'courses.id = enrollments.course_id')
+                                                ->where('enrollments.id', $enrollmentId)
+                                                ->first();
+                $courseTitle = $course ? $course['title'] : "Course";
+                $message = "You have accepted the enrollment request for '{$courseTitle}'. Welcome to the course!";
+                $this->notificationModel->createNotification($studentId, $message);
+
+                return $this->response->setJSON([
+                    'success' => true,
+                    'message' => 'Enrollment accepted successfully!'
+                ]);
+            } else {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Failed to accept enrollment.'
+                ]);
+            }
+        } catch (\Exception $e) {
+            log_message('error', 'Accept enrollment error: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'An error occurred: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Reject enrollment request
+     */
+    public function rejectEnrollment($enrollmentId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'You must be logged in.'
+            ])->setStatusCode(401);
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'student') {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Only students can reject enrollments.'
+            ])->setStatusCode(403);
+        }
+
+        if (!$enrollmentId) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Enrollment ID is required.'
+            ])->setStatusCode(400);
+        }
+
+        $studentId = session('userID');
+        $enrollment = $this->enrollmentModel->find($enrollmentId);
+
+        if (!$enrollment) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Enrollment request not found.'
+            ])->setStatusCode(404);
+        }
+
+        // Verify the enrollment belongs to the student and is pending
+        if ($enrollment['user_id'] != $studentId) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Access denied.'
+            ])->setStatusCode(403);
+        }
+
+        if ($enrollment['status'] !== 'pending') {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'This enrollment request is no longer pending.'
+            ])->setStatusCode(400);
+        }
+
+        // Update enrollment status to rejected
+        try {
+            if ($this->enrollmentModel->update($enrollmentId, ['status' => 'rejected'])) {
+                return $this->response->setJSON([
+                    'success' => true,
+                    'message' => 'Enrollment request rejected.'
+                ]);
+            } else {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Failed to reject enrollment.'
+                ]);
+            }
+        } catch (\Exception $e) {
+            log_message('error', 'Reject enrollment error: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'An error occurred: ' . $e->getMessage()
+            ]);
+        }
     }
 
     /**
@@ -95,10 +333,11 @@ class Student extends BaseController
 
         $studentId = session('userID');
 
-        // Get all courses the student is enrolled in
-        $enrollments = $this->enrollmentModel->where('user_id', $studentId)
-                                             ->where('status', 'active')
-                                             ->findAll();
+        // Expire old enrollments first
+        $this->enrollmentModel->expireOldEnrollments();
+
+        // Get all active (non-expired) courses the student is enrolled in
+        $enrollments = $this->enrollmentModel->getActiveEnrollments($studentId);
 
         $courseIds = array_column($enrollments, 'course_id');
 

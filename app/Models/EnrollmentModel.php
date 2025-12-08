@@ -12,7 +12,7 @@ class EnrollmentModel extends Model
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
-    protected $allowedFields    = ['user_id', 'course_id', 'enrollment_date', 'created_at', 'updated_at'];
+    protected $allowedFields    = ['user_id', 'course_id', 'enrollment_date', 'semester_end_date', 'status', 'progress', 'created_at', 'updated_at'];
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
@@ -58,7 +58,57 @@ class EnrollmentModel extends Model
             $data['enrollment_date'] = date('Y-m-d H:i:s');
         }
 
+        // Set semester end date (4 months from enrollment date)
+        if (!isset($data['semester_end_date'])) {
+            $enrollmentDate = new \DateTime($data['enrollment_date']);
+            $enrollmentDate->modify('+4 months');
+            $data['semester_end_date'] = $enrollmentDate->format('Y-m-d H:i:s');
+        }
+
         return $this->insert($data);
+    }
+
+    /**
+     * Get active enrollments (not expired)
+     */
+    public function getActiveEnrollments($user_id)
+    {
+        $now = date('Y-m-d H:i:s');
+        return $this->where('user_id', $user_id)
+                    ->where('status', 'active')
+                    ->groupStart()
+                        ->where('semester_end_date IS NULL')
+                        ->orWhere('semester_end_date >', $now)
+                    ->groupEnd()
+                    ->findAll();
+    }
+
+    /**
+     * Check if enrollment is expired
+     */
+    public function isEnrollmentExpired($enrollment)
+    {
+        if (empty($enrollment['semester_end_date'])) {
+            return false; // No expiration date set
+        }
+
+        $now = new \DateTime();
+        $endDate = new \DateTime($enrollment['semester_end_date']);
+        
+        return $now > $endDate;
+    }
+
+    /**
+     * Expire old enrollments (mark as expired after 4 months)
+     */
+    public function expireOldEnrollments()
+    {
+        $now = date('Y-m-d H:i:s');
+        return $this->where('status', 'active')
+                    ->where('semester_end_date IS NOT NULL')
+                    ->where('semester_end_date <=', $now)
+                    ->set('status', 'expired')
+                    ->update();
     }
 
     /**
@@ -80,9 +130,21 @@ class EnrollmentModel extends Model
     {
         $enrollment = $this->where('user_id', $user_id)
                           ->where('course_id', $course_id)
+                          ->whereIn('status', ['active', 'pending'])
                           ->first();
         
         return $enrollment !== null;
+    }
+
+    /**
+     * Get pending enrollments for a user
+     */
+    public function getPendingEnrollments($user_id)
+    {
+        return $this->where('user_id', $user_id)
+                    ->where('status', 'pending')
+                    ->orderBy('enrollment_date', 'DESC')
+                    ->findAll();
     }
 
     /**

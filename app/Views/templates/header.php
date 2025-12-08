@@ -139,7 +139,6 @@ $currentPage = $page ?? '';
                     <?php if ($userRole === 'student'): ?>
                         <li class="nav-item"><a class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('dashboard') ?>">Dashboard</a></li>
                         <li class="nav-item"><a class="nav-link <?= $currentPage === 'courses' ? 'active' : '' ?>" href="<?= base_url('courses') ?>">Courses</a></li>
-                        <li class="nav-item"><a class="nav-link <?= $currentPage === 'my-courses' ? 'active' : '' ?>" href="<?= base_url('student/courses') ?>">My Courses</a></li>
                         <li class="nav-item"><a class="nav-link" href="<?= base_url('student/assignments') ?>">Assignments</a></li>
                         <li class="nav-item"><a class="nav-link" href="<?= base_url('announcements') ?>">Announcements</a></li>
                     <?php elseif ($userRole === 'admin'): ?>
@@ -324,6 +323,32 @@ function updateNotificationsList(notifications) {
     let html = '';
     notifications.forEach(function(notification) {
         const alertClass = notification.is_read ? 'alert-secondary' : 'alert-info';
+        
+        // Check if this is an enrollment request notification
+        const enrollmentMatch = notification.message.match(/ENROLLMENT_REQUEST:(\d+)\|(.+)/);
+        let displayMessage = notification.message;
+        let enrollmentId = null;
+        let enrollmentActions = '';
+        
+        if (enrollmentMatch) {
+            enrollmentId = enrollmentMatch[1];
+            displayMessage = enrollmentMatch[2];
+            
+            // Only show accept/reject buttons if enrollment is still pending and notification is unread
+            if (!notification.is_read && enrollmentId) {
+                enrollmentActions = `
+                    <div class="enrollment-actions mt-2">
+                        <button class="btn btn-sm btn-success me-1" onclick="acceptEnrollmentFromNotification(${enrollmentId}, ${notification.id})" title="Accept enrollment">
+                            <i class="bi bi-check-circle"></i> Accept
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="rejectEnrollmentFromNotification(${enrollmentId}, ${notification.id})" title="Reject enrollment">
+                            <i class="bi bi-x-circle"></i> Reject
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
         const readButton = notification.is_read ? '' : `
             <button class="btn btn-sm btn-outline-success mark-read-btn" onclick="markAsRead(${notification.id})">
                 <i class="bi bi-check"></i> Mark Read
@@ -333,7 +358,8 @@ function updateNotificationsList(notifications) {
         html += `
             <li class="notification-item ${notification.is_read ? '' : 'unread'}">
                 <div class="alert ${alertClass} mb-0">
-                    <div class="notification-message">${notification.message}</div>
+                    <div class="notification-message">${displayMessage}</div>
+                    ${enrollmentActions}
                     <div class="d-flex justify-content-between align-items-center mt-2">
                         <small class="notification-time text-muted">${notification.time_ago}</small>
                         ${readButton}
@@ -467,4 +493,89 @@ function getTimeSinceLastUpdate() {
     }
     return 'Never';
 }
+
+// Accept enrollment from notification
+function acceptEnrollmentFromNotification(enrollmentId, notificationId) {
+    if (!confirm('Are you sure you want to accept this enrollment request?')) {
+        return;
+    }
+
+    fetch('<?= base_url('student/enrollments/accept/') ?>' + enrollmentId, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mark notification as read
+            markAsRead(notificationId);
+            // Reload notifications
+            loadNotifications();
+            // Show success message
+            showNotificationToast(data.message || 'Enrollment accepted successfully!', 'success');
+            // Reload page after a short delay to show updated courses
+            setTimeout(function() {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showNotificationToast(data.message || 'Failed to accept enrollment.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotificationToast('An error occurred. Please try again.', 'error');
+    });
+}
+
+// Reject enrollment from notification
+function rejectEnrollmentFromNotification(enrollmentId, notificationId) {
+    if (!confirm('Are you sure you want to reject this enrollment request?')) {
+        return;
+    }
+
+    fetch('<?= base_url('student/enrollments/reject/') ?>' + enrollmentId, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mark notification as read
+            markAsRead(notificationId);
+            // Reload notifications
+            loadNotifications();
+            // Show success message
+            showNotificationToast(data.message || 'Enrollment request rejected.', 'success');
+        } else {
+            showNotificationToast(data.message || 'Failed to reject enrollment.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotificationToast('An error occurred. Please try again.', 'error');
+    });
+}
 </script>
+
+<style>
+.enrollment-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.enrollment-actions .btn {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+}
+
+.notification-item .alert {
+    position: relative;
+}
+</style>
