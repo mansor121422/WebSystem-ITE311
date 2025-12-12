@@ -43,8 +43,10 @@
                            class="form-control" 
                            value="<?= old('title') ?>"
                            placeholder="e.g., Introduction to Programming"
+                           pattern="[a-zA-ZÑñ\s\.,\-()]+"
+                           title="Only letters (including Ñ/ñ), spaces, and basic punctuation (., -) are allowed. Numbers and special characters are not allowed."
                            required>
-                    <small class="form-text">Enter a descriptive title for the course (3-200 characters)</small>
+                    <small class="form-text">Enter a descriptive title for the course (3-200 characters). Only letters (including Ñ/ñ), spaces, and basic punctuation allowed. Numbers are not allowed.</small>
                 </div>
 
                 <div class="form-group">

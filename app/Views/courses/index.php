@@ -683,8 +683,11 @@ $(document).ready(function() {
                         <div class="mb-3">
                             <label for="modal_title" class="form-label required">Course Title</label>
                             <input type="text" id="modal_title" name="title" class="form-control" 
-                                   value="<?= old('title') ?>" placeholder="e.g., Introduction to Programming" required>
-                            <small class="form-text text-muted">Enter a descriptive title for the course (3-200 characters)</small>
+                                   value="<?= old('title') ?>" placeholder="e.g., Introduction to Programming" 
+                                   pattern="[a-zA-ZÑñ\s\.,\-()]+"
+                                   title="Only letters (including Ñ/ñ), spaces, and basic punctuation (., -) are allowed. Numbers and special characters are not allowed."
+                                   required>
+                            <small class="form-text text-muted">Enter a descriptive title for the course (3-200 characters). Only letters (including Ñ/ñ), spaces, and basic punctuation allowed. Numbers are not allowed.</small>
                         </div>
 
                         <div class="mb-3">
@@ -1082,6 +1085,63 @@ $(document).ready(function() {
                 $btn.prop('disabled', false).html('<i class="fas fa-trash"></i> Delete');
             }
         });
+    });
+});
+
+// Real-time validation for course title field - only allow letters (including Ñ/ñ), numbers, spaces, and basic punctuation
+document.addEventListener('DOMContentLoaded', function() {
+    const titleInputs = document.querySelectorAll('#modal_title, #title');
+    
+    titleInputs.forEach(function(input) {
+        if (!input) return;
+        
+        // Remove any characters that are not allowed as user types
+        input.addEventListener('input', function(e) {
+            // Allow: letters (a-z, A-Z, including Ñ/ñ), spaces, and basic punctuation (., -)
+            // Numbers are NOT allowed
+            this.value = this.value.replace(/[^a-zA-ZÑñ\s\.,\-()]/g, '');
+        });
+        
+        // Prevent pasting invalid characters
+        input.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const paste = (e.clipboardData || window.clipboardData).getData('text');
+            // Only allow letters, spaces, and basic punctuation (no numbers)
+            const cleaned = paste.replace(/[^a-zA-ZÑñ\s\.,\-()]/g, '');
+            this.value = cleaned;
+        });
+        
+        // Validate on form submission
+        const form = input.closest('form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const titleValue = input.value.trim();
+                
+                // Check if title is empty or contains only spaces
+                if (!titleValue || titleValue.length === 0) {
+                    e.preventDefault();
+                    alert('Course title is required and must contain at least one letter.');
+                    input.focus();
+                    return false;
+                }
+                
+                // Check if title contains only allowed characters
+                if (!/^[a-zA-ZÑñ\s\.,\-()]+$/.test(titleValue)) {
+                    e.preventDefault();
+                    alert('Course title can only contain letters (including Ñ/ñ), spaces, and basic punctuation (., -). Numbers and special characters are not allowed.');
+                    input.focus();
+                    return false;
+                }
+                
+                // Check for multiple consecutive spaces
+                if (/\s{2,}/.test(titleValue)) {
+                    e.preventDefault();
+                    alert('Course title cannot contain multiple consecutive spaces.');
+                    input.focus();
+                    return false;
+                }
+            });
+        }
     });
 });
 </script>

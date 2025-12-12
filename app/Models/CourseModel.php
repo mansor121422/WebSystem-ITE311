@@ -180,6 +180,91 @@ class CourseModel extends Model
     }
 
     /**
+     * Check for schedule conflicts for a specific teacher
+     * This ensures teachers don't have overlapping class schedules
+     * 
+     * @param int $teacherId The instructor ID to check
+     * @param string|array $scheduleDays Day(s) to check (can be comma-separated string or array)
+     * @param string $timeStart Start time (HH:MM format)
+     * @param string $timeEnd End time (HH:MM format)
+     * @param string $schoolYear School year
+     * @param string $semester Semester
+     * @param int|null $excludeId Course ID to exclude from check (for updates)
+     * @return array Array of conflicting courses
+     */
+    public function checkTeacherScheduleConflict($teacherId, $scheduleDays, $timeStart, $timeEnd, $schoolYear, $semester, $excludeId = null)
+    {
+        if (empty($teacherId) || empty($scheduleDays) || empty($timeStart) || empty($timeEnd) || empty($schoolYear) || empty($semester)) {
+            return [];
+        }
+
+        // Convert scheduleDays to array if it's a comma-separated string
+        if (is_string($scheduleDays)) {
+            $daysArray = array_map('trim', explode(',', $scheduleDays));
+        } else {
+            $daysArray = $scheduleDays;
+        }
+
+        $conflicts = [];
+
+        // Check each day for conflicts
+        foreach ($daysArray as $day) {
+            $day = trim($day);
+            if (empty($day)) {
+                continue;
+            }
+
+            // Find all courses assigned to this teacher in the same school year and semester
+            $teacherCourses = $this->where('instructor_id', $teacherId)
+                                 ->where('school_year', $schoolYear)
+                                 ->where('semester', $semester)
+                                 ->where('schedule_day IS NOT NULL')
+                                 ->where('schedule_time_start IS NOT NULL')
+                                 ->where('schedule_time_end IS NOT NULL');
+
+            if ($excludeId) {
+                $teacherCourses->where('id !=', $excludeId);
+            }
+
+            $teacherCourses = $teacherCourses->findAll();
+
+            // Check each of the teacher's existing courses for time conflicts on this day
+            foreach ($teacherCourses as $course) {
+                $courseDays = array_map('trim', explode(',', $course['schedule_day']));
+                
+                // Check if this course is scheduled on the same day
+                if (in_array($day, $courseDays)) {
+                    $courseStart = $course['schedule_time_start'];
+                    $courseEnd = $course['schedule_time_end'];
+
+                    // Check for time overlap
+                    // Conflict occurs if:
+                    // 1. New start time is between existing start and end
+                    // 2. New end time is between existing start and end
+                    // 3. New time completely encompasses existing time
+                    // 4. Existing time completely encompasses new time
+                    if (
+                        ($timeStart >= $courseStart && $timeStart < $courseEnd) ||
+                        ($timeEnd > $courseStart && $timeEnd <= $courseEnd) ||
+                        ($timeStart <= $courseStart && $timeEnd >= $courseEnd) ||
+                        ($timeStart >= $courseStart && $timeEnd <= $courseEnd)
+                    ) {
+                        $conflicts[] = [
+                            'course_id' => $course['id'],
+                            'course_title' => $course['title'],
+                            'day' => $day,
+                            'existing_time' => $courseStart . '-' . $courseEnd,
+                            'new_time' => $timeStart . '-' . $timeEnd
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $conflicts;
+    }
+
+    /**
      * Get courses by school year and semester
      */
     public function getCoursesBySemester($schoolYear, $semester)

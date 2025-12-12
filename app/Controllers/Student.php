@@ -8,6 +8,9 @@ use App\Models\AssignmentSubmissionModel;
 use App\Models\EnrollmentModel;
 use App\Models\NotificationModel;
 use App\Models\CourseModel;
+use App\Models\QuizModel;
+use App\Models\QuizQuestionModel;
+use App\Models\QuizSubmissionModel;
 
 class Student extends BaseController
 {
@@ -16,6 +19,9 @@ class Student extends BaseController
     protected $enrollmentModel;
     protected $notificationModel;
     protected $courseModel;
+    protected $quizModel;
+    protected $quizQuestionModel;
+    protected $quizSubmissionModel;
 
     public function __construct()
     {
@@ -24,6 +30,9 @@ class Student extends BaseController
         $this->enrollmentModel = new EnrollmentModel();
         $this->notificationModel = new NotificationModel();
         $this->courseModel = new CourseModel();
+        $this->quizModel = new QuizModel();
+        $this->quizQuestionModel = new QuizQuestionModel();
+        $this->quizSubmissionModel = new QuizSubmissionModel();
     }
 
     /**
@@ -450,11 +459,20 @@ class Student extends BaseController
         $this->enrollmentModel->expireOldEnrollments();
 
         // Get all active (non-expired) courses the student is enrolled in
-        $enrollments = $this->enrollmentModel->getActiveEnrollments($studentId);
+        $activeEnrollments = $this->enrollmentModel->getActiveEnrollments($studentId);
+        
+        // Also get pending enrollments (students should see assignments even if enrollment is pending approval)
+        $pendingEnrollments = $this->enrollmentModel->getPendingEnrollments($studentId);
+        
+        // Combine both active and pending enrollments
+        $allEnrollments = array_merge($activeEnrollments ?? [], $pendingEnrollments ?? []);
+        
+        // Get unique course IDs from all enrollments, filter out null/empty values
+        $courseIds = array_filter(array_unique(array_column($allEnrollments, 'course_id')), function($id) {
+            return !empty($id);
+        });
 
-        $courseIds = array_column($enrollments, 'course_id');
-
-        // Get all assignments for enrolled courses
+        // Get all assignments for enrolled courses (both active and pending)
         $assignments = [];
         if (!empty($courseIds)) {
             $assignments = $this->assignmentModel->select('assignments.*, courses.title as course_title')
@@ -720,6 +738,376 @@ class Student extends BaseController
 
         return $this->response->download($submission['file_path'], null)
                               ->setFileName($submission['file_name']);
+    }
+
+    /**
+     * View all quizzes for enrolled courses
+     */
+    public function quizzes()
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'student') {
+            return redirect()->to('/dashboard');
+        }
+
+        $studentId = session('userID');
+
+        // Expire old enrollments first
+        $this->enrollmentModel->expireOldEnrollments();
+
+        // Get all active and pending enrollments
+        $activeEnrollments = $this->enrollmentModel->getActiveEnrollments($studentId);
+        $pendingEnrollments = $this->enrollmentModel->getPendingEnrollments($studentId);
+        $allEnrollments = array_merge($activeEnrollments ?? [], $pendingEnrollments ?? []);
+        
+        $courseIds = array_filter(array_unique(array_column($allEnrollments, 'course_id')), function($id) {
+            return !empty($id);
+        });
+
+        // Get all quizzes for enrolled courses
+        $quizzes = [];
+        if (!empty($courseIds)) {
+            $quizzes = $this->quizModel->select('quizzes.*, courses.title as course_title')
+                                       ->join('courses', 'courses.id = quizzes.course_id')
+                                       ->whereIn('quizzes.course_id', $courseIds)
+                                       ->where('quizzes.is_published', true)
+                                       ->orderBy('quizzes.created_at', 'DESC')
+                                       ->findAll();
+        }
+
+        // Get submission status for each quiz
+        foreach ($quizzes as &$quiz) {
+            $submission = $this->quizSubmissionModel->getSubmission($quiz['id'], $studentId);
+            $quiz['has_submitted'] = $submission !== null;
+            $quiz['attempt_count'] = $this->quizSubmissionModel->getAttemptCount($quiz['id'], $studentId);
+            $quiz['max_attempts'] = $quiz['max_attempts'] ?? 1;
+            $quiz['can_attempt'] = $quiz['attempt_count'] < $quiz['max_attempts'];
+        }
+
+        $data = [
+            'title' => 'My Quizzes - Student Dashboard',
+            'quizzes' => $quizzes
+        ];
+
+        return view('student/quizzes', $data);
+    }
+
+    /**
+     * View a specific quiz
+     */
+    public function viewQuiz($quizId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'student') {
+            return redirect()->to('/dashboard');
+        }
+
+        if (!$quizId) {
+            session()->setFlashdata('error', 'Quiz ID is required.');
+            return redirect()->to('/student/quizzes');
+        }
+
+        $studentId = session('userID');
+        $quiz = $this->quizModel->getQuizWithDetails($quizId);
+        
+        if (!$quiz) {
+            session()->setFlashdata('error', 'Quiz not found.');
+            return redirect()->to('/student/quizzes');
+        }
+
+        // Check if student is enrolled in the course
+        $enrollment = $this->enrollmentModel->where('user_id', $studentId)
+                                           ->where('course_id', $quiz['course_id'])
+                                           ->whereIn('status', ['active', 'pending'])
+                                           ->first();
+        
+        if (!$enrollment) {
+            session()->setFlashdata('error', 'You are not enrolled in this course.');
+            return redirect()->to('/student/quizzes');
+        }
+
+        // Get submission info
+        $submission = $this->quizSubmissionModel->getSubmission($quizId, $studentId);
+        $attemptCount = $this->quizSubmissionModel->getAttemptCount($quizId, $studentId);
+        $canAttempt = $attemptCount < ($quiz['max_attempts'] ?? 1);
+
+        $data = [
+            'title' => 'View Quiz - Student Dashboard',
+            'quiz' => $quiz,
+            'submission' => $submission,
+            'attemptCount' => $attemptCount,
+            'canAttempt' => $canAttempt
+        ];
+
+        return view('student/view_quiz', $data);
+    }
+
+    /**
+     * Take a quiz
+     */
+    public function takeQuiz($quizId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'student') {
+            return redirect()->to('/dashboard');
+        }
+
+        if (!$quizId) {
+            session()->setFlashdata('error', 'Quiz ID is required.');
+            return redirect()->to('/student/quizzes');
+        }
+
+        $studentId = session('userID');
+        $quiz = $this->quizModel->getQuizWithDetails($quizId);
+        
+        if (!$quiz) {
+            session()->setFlashdata('error', 'Quiz not found.');
+            return redirect()->to('/student/quizzes');
+        }
+
+        // Check if student is enrolled
+        $enrollment = $this->enrollmentModel->where('user_id', $studentId)
+                                           ->where('course_id', $quiz['course_id'])
+                                           ->whereIn('status', ['active', 'pending'])
+                                           ->first();
+        
+        if (!$enrollment) {
+            session()->setFlashdata('error', 'You are not enrolled in this course.');
+            return redirect()->to('/student/quizzes');
+        }
+
+        // Check attempt limit
+        $attemptCount = $this->quizSubmissionModel->getAttemptCount($quizId, $studentId);
+        if ($attemptCount >= ($quiz['max_attempts'] ?? 1)) {
+            session()->setFlashdata('error', 'You have reached the maximum number of attempts for this quiz.');
+            return redirect()->to('/student/view-quiz/' . $quizId);
+        }
+
+        // Get questions
+        $questions = $this->quizQuestionModel->getQuestionsByQuiz($quizId, $quiz['randomize_questions'] ?? false);
+        
+        if (empty($questions)) {
+            session()->setFlashdata('error', 'This quiz has no questions yet.');
+            return redirect()->to('/student/view-quiz/' . $quizId);
+        }
+
+        // Create or get in-progress submission
+        $submission = $this->quizSubmissionModel->where('quiz_id', $quizId)
+                                                ->where('user_id', $studentId)
+                                                ->where('status', 'in_progress')
+                                                ->first();
+
+        if (!$submission) {
+            $nextAttempt = $this->quizSubmissionModel->getNextAttemptNumber($quizId, $studentId);
+            $submissionData = [
+                'user_id' => $studentId,
+                'quiz_id' => $quizId,
+                'attempt_number' => $nextAttempt,
+                'total_questions' => count($questions),
+                'status' => 'in_progress',
+                'started_at' => date('Y-m-d H:i:s'),
+            ];
+            $submissionId = $this->quizSubmissionModel->insert($submissionData);
+            $submission = $this->quizSubmissionModel->find($submissionId);
+        }
+
+        // Decode options for questions
+        foreach ($questions as &$question) {
+            if (!empty($question['options'])) {
+                $question['options'] = json_decode($question['options'], true);
+            }
+        }
+
+        $data = [
+            'title' => 'Take Quiz - Student Dashboard',
+            'quiz' => $quiz,
+            'questions' => $questions,
+            'submission' => $submission
+        ];
+
+        return view('student/take_quiz', $data);
+    }
+
+    /**
+     * Submit quiz answers
+     */
+    public function submitQuiz($submissionId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'student') {
+            return redirect()->to('/dashboard');
+        }
+
+        if (!$submissionId) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Submission ID is required.'
+            ])->setStatusCode(400);
+        }
+
+        $studentId = session('userID');
+        $submission = $this->quizSubmissionModel->find($submissionId);
+
+        if (!$submission || $submission['user_id'] != $studentId) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Submission not found or access denied.'
+            ])->setStatusCode(403);
+        }
+
+        if ($submission['status'] === 'completed') {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'This quiz has already been submitted.'
+            ])->setStatusCode(400);
+        }
+
+        // Get quiz and questions
+        $quiz = $this->quizModel->find($submission['quiz_id']);
+        $questions = $this->quizQuestionModel->getQuestionsByQuiz($submission['quiz_id']);
+
+        // Get answers from POST
+        $answers = $this->request->getPost('answers');
+        $timeTaken = $this->request->getPost('time_taken');
+
+        if (empty($answers) || !is_array($answers)) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'No answers provided.'
+            ])->setStatusCode(400);
+        }
+
+        // Grade the quiz
+        $correctAnswers = 0;
+        $totalQuestions = count($questions);
+        $gradedAnswers = [];
+
+        foreach ($questions as $question) {
+            $questionId = $question['id'];
+            $studentAnswer = $answers[$questionId] ?? null;
+            $isCorrect = false;
+
+            // Check answer based on question type
+            if ($question['question_type'] === 'multiple_choice') {
+                $isCorrect = ($studentAnswer == $question['correct_answer']);
+            } elseif ($question['question_type'] === 'true_false') {
+                $isCorrect = (strtolower($studentAnswer) == strtolower($question['correct_answer']));
+            } elseif ($question['question_type'] === 'short_answer') {
+                // For short answer, do case-insensitive comparison
+                $isCorrect = (strtolower(trim($studentAnswer)) == strtolower(trim($question['correct_answer'])));
+            }
+
+            if ($isCorrect) {
+                $correctAnswers++;
+            }
+
+            $gradedAnswers[$questionId] = [
+                'student_answer' => $studentAnswer,
+                'correct_answer' => $question['correct_answer'],
+                'is_correct' => $isCorrect,
+                'points' => $isCorrect ? $question['points'] : 0
+            ];
+        }
+
+        // Calculate score percentage
+        $score = $totalQuestions > 0 ? ($correctAnswers / $totalQuestions) * 100 : 0;
+
+        // Update submission
+        $updateData = [
+            'submission_data' => json_encode($gradedAnswers),
+            'score' => $score,
+            'correct_answers' => $correctAnswers,
+            'time_taken' => !empty($timeTaken) ? (int)$timeTaken : null,
+            'status' => 'completed',
+            'submitted_at' => date('Y-m-d H:i:s'),
+        ];
+
+        if ($this->quizSubmissionModel->update($submissionId, $updateData)) {
+            return $this->response->setJSON([
+                'success' => true,
+                'message' => 'Quiz submitted successfully!',
+                'score' => round($score, 2),
+                'correct' => $correctAnswers,
+                'total' => $totalQuestions,
+                'redirect' => base_url('student/quiz-result/' . $submissionId)
+            ]);
+        } else {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Failed to submit quiz.'
+            ])->setStatusCode(500);
+        }
+    }
+
+    /**
+     * View quiz result
+     */
+    public function viewQuizResult($submissionId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'student') {
+            return redirect()->to('/dashboard');
+        }
+
+        if (!$submissionId) {
+            session()->setFlashdata('error', 'Submission ID is required.');
+            return redirect()->to('/student/quizzes');
+        }
+
+        $studentId = session('userID');
+        $submission = $this->quizSubmissionModel->find($submissionId);
+
+        if (!$submission || $submission['user_id'] != $studentId) {
+            session()->setFlashdata('error', 'Submission not found or access denied.');
+            return redirect()->to('/student/quizzes');
+        }
+
+        $quiz = $this->quizModel->getQuizWithDetails($submission['quiz_id']);
+        $questions = $this->quizQuestionModel->getQuestionsByQuiz($submission['quiz_id']);
+        $submissionData = json_decode($submission['submission_data'], true);
+
+        // Decode options for questions
+        foreach ($questions as &$question) {
+            if (!empty($question['options'])) {
+                $question['options'] = json_decode($question['options'], true);
+            }
+            // Add student answer and grading info
+            if (!empty($submissionData[$question['id']])) {
+                $question['student_answer'] = $submissionData[$question['id']]['student_answer'] ?? null;
+                $question['correct_answer'] = $submissionData[$question['id']]['correct_answer'] ?? null;
+                $question['is_correct'] = $submissionData[$question['id']]['is_correct'] ?? false;
+            }
+        }
+
+        $data = [
+            'title' => 'Quiz Result - Student Dashboard',
+            'quiz' => $quiz,
+            'submission' => $submission,
+            'questions' => $questions,
+            'showCorrectAnswers' => $quiz['show_correct_answers'] ?? true
+        ];
+
+        return view('student/quiz_result', $data);
     }
 }
 

@@ -8,7 +8,7 @@ class MaterialModel extends Model
 {
     protected $table = 'materials';
     protected $primaryKey = 'id';
-    protected $allowedFields = ['course_id', 'file_name', 'file_path', 'created_at'];
+    protected $allowedFields = ['course_id', 'teacher_id', 'file_name', 'file_path', 'created_at'];
     protected $useTimestamps = false;
     protected $createdField = 'created_at';
 
@@ -27,12 +27,19 @@ class MaterialModel extends Model
      * Get all materials for a specific course
      * 
      * @param int $course_id
+     * @param int|null $teacher_id If provided, only return materials uploaded by this teacher
      * @return array
      */
-    public function getMaterialsByCourse($course_id)
+    public function getMaterialsByCourse($course_id, $teacher_id = null)
     {
-        return $this->where('course_id', $course_id)
-                    ->orderBy('created_at', 'DESC')
+        $query = $this->where('course_id', $course_id);
+        
+        // If teacher_id is provided, filter by teacher
+        if ($teacher_id !== null) {
+            $query->where('teacher_id', $teacher_id);
+        }
+        
+        return $query->orderBy('created_at', 'DESC')
                     ->findAll();
     }
 }

@@ -36,8 +36,10 @@
                        name="name" 
                        class="form-control" 
                        value="<?= set_value('name') ?>" 
+                       pattern="[a-zA-Z\s]+"
+                       title="Only letters and spaces are allowed. No numbers or special characters."
                        required>
-                <small class="form-text">Letters and spaces only. No special characters.</small>
+                <small class="form-text">Letters and spaces only. No numbers, special characters, or symbols.</small>
             </div>
 
             <div class="form-group">
@@ -87,6 +89,53 @@
         </form>
     </div>
 </div>
+
+<script>
+// Real-time validation for name field - only allow letters and spaces
+document.getElementById('name').addEventListener('input', function(e) {
+    // Remove any characters that are not letters or spaces
+    this.value = this.value.replace(/[^a-zA-Z\s]/g, '');
+});
+
+// Prevent pasting invalid characters
+document.getElementById('name').addEventListener('paste', function(e) {
+    e.preventDefault();
+    const paste = (e.clipboardData || window.clipboardData).getData('text');
+    // Only allow letters and spaces
+    const cleaned = paste.replace(/[^a-zA-Z\s]/g, '');
+    this.value = cleaned;
+});
+
+// Validate on form submission
+document.querySelector('.user-form').addEventListener('submit', function(e) {
+    const nameField = document.getElementById('name');
+    const nameValue = nameField.value.trim();
+    
+    // Check if name is empty or contains only spaces
+    if (!nameValue || nameValue.length === 0) {
+        e.preventDefault();
+        alert('Name is required and must contain at least one letter.');
+        nameField.focus();
+        return false;
+    }
+    
+    // Check if name contains only letters and spaces
+    if (!/^[a-zA-Z\s]+$/.test(nameValue)) {
+        e.preventDefault();
+        alert('Name must contain only letters and spaces. No numbers or special characters allowed.');
+        nameField.focus();
+        return false;
+    }
+    
+    // Check for multiple consecutive spaces
+    if (/\s{2,}/.test(nameValue)) {
+        e.preventDefault();
+        alert('Name cannot contain multiple consecutive spaces.');
+        nameField.focus();
+        return false;
+    }
+});
+</script>
 
 <style>
     .create-user-page {

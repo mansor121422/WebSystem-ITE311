@@ -9,6 +9,9 @@ use App\Models\CourseModel;
 use App\Models\AssignmentModel;
 use App\Models\AssignmentSubmissionModel;
 use App\Models\NotificationModel;
+use App\Models\QuizModel;
+use App\Models\QuizQuestionModel;
+use App\Models\QuizSubmissionModel;
 
 class Teacher extends BaseController
 {
@@ -18,6 +21,9 @@ class Teacher extends BaseController
     protected $assignmentModel;
     protected $submissionModel;
     protected $notificationModel;
+    protected $quizModel;
+    protected $quizQuestionModel;
+    protected $quizSubmissionModel;
 
     public function __construct()
     {
@@ -27,6 +33,9 @@ class Teacher extends BaseController
         $this->assignmentModel = new AssignmentModel();
         $this->submissionModel = new AssignmentSubmissionModel();
         $this->notificationModel = new NotificationModel();
+        $this->quizModel = new QuizModel();
+        $this->quizQuestionModel = new QuizQuestionModel();
+        $this->quizSubmissionModel = new QuizSubmissionModel();
     }
 
     /**
@@ -782,16 +791,17 @@ class Teacher extends BaseController
     }
 
     /**
-     * Notify all enrolled students about new assignment
+     * Notify all enrolled students about new assignment or quiz
      */
-    protected function notifyEnrolledStudents($courseId, $assignmentTitle)
+    protected function notifyEnrolledStudents($courseId, $itemTitle, $type = 'assignment')
     {
-        $db = \Config\Database::connect();
-        $students = $db->query("
-            SELECT DISTINCT user_id 
-            FROM enrollments 
-            WHERE course_id = ? AND status = 'active'
-        ", [$courseId])->getResultArray();
+        $enrollments = $this->enrollmentModel->where('course_id', $courseId)
+                                            ->whereIn('status', ['active', 'pending'])
+                                            ->findAll();
+        
+        $students = array_map(function($enrollment) {
+            return ['user_id' => $enrollment['user_id']];
+        }, $enrollments);
 
         if (empty($students)) {
             return;
@@ -799,7 +809,8 @@ class Teacher extends BaseController
 
         $course = $this->courseModel->find($courseId);
         $courseTitle = $course ? $course['title'] : "Course #{$courseId}";
-        $message = "New assignment '{$assignmentTitle}' has been posted for {$courseTitle}. Check your assignments!";
+        $itemType = $type === 'quiz' ? 'quiz' : 'assignment';
+        $message = "New {$itemType} '{$itemTitle}' has been posted for {$courseTitle}. Check your {$itemType}s!";
 
         foreach ($students as $student) {
             try {
@@ -809,5 +820,239 @@ class Teacher extends BaseController
             }
         }
     }
+
+    /**
+     * View all quizzes created by teacher
+     */
+    public function quizzes()
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'teacher' && $userRole !== 'admin') {
+            return redirect()->to('/dashboard');
+        }
+
+        $teacherId = session('userID');
+        $quizzes = $this->quizModel->getQuizzesByTeacher($teacherId);
+
+        $data = [
+            'title' => 'My Quizzes - Teacher Dashboard',
+            'quizzes' => $quizzes
+        ];
+
+        return view('teacher/quizzes', $data);
+    }
+
+    /**
+     * Create a new quiz
+     */
+    public function createQuiz()
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'teacher' && $userRole !== 'admin') {
+            return redirect()->to('/dashboard');
+        }
+
+        $teacherId = session('userID');
+
+        // Get courses taught by this teacher
+        $courses = $this->courseModel->where('instructor_id', $teacherId)->findAll();
+
+        if ($this->request->getMethod() === 'POST') {
+            $courseId = $this->request->getPost('course_id');
+            $title = $this->request->getPost('title');
+            $description = $this->request->getPost('description');
+            $instructions = $this->request->getPost('instructions');
+            $timeLimit = $this->request->getPost('time_limit');
+            $maxAttempts = $this->request->getPost('max_attempts') ?? 1;
+            $passingScore = $this->request->getPost('passing_score') ?? 70;
+            $isPublished = $this->request->getPost('is_published') ? true : false;
+            $showCorrectAnswers = $this->request->getPost('show_correct_answers') ? true : false;
+            $randomizeQuestions = $this->request->getPost('randomize_questions') ? true : false;
+
+            // Validation
+            if (empty($courseId) || empty($title)) {
+                session()->setFlashdata('error', 'Course and Title are required.');
+                return redirect()->back()->withInput();
+            }
+
+            $quizData = [
+                'course_id' => $courseId,
+                'title' => $title,
+                'description' => $description ?? null,
+                'instructions' => $instructions ?? null,
+                'time_limit' => !empty($timeLimit) ? (int)$timeLimit : null,
+                'max_attempts' => (int)$maxAttempts,
+                'passing_score' => (float)$passingScore,
+                'is_published' => $isPublished,
+                'show_correct_answers' => $showCorrectAnswers,
+                'randomize_questions' => $randomizeQuestions,
+            ];
+
+            if ($quizId = $this->quizModel->insert($quizData)) {
+                // Handle questions if provided
+                $questions = $this->request->getPost('questions');
+                if (!empty($questions) && is_array($questions)) {
+                    $orderIndex = 0;
+                    foreach ($questions as $question) {
+                        if (!empty($question['question_text'])) {
+                            $questionType = $question['question_type'] ?? 'multiple_choice';
+                            $correctAnswer = '';
+                            $options = null;
+                            
+                            // Process based on question type
+                            if ($questionType === 'multiple_choice') {
+                                // Get options array
+                                $optionsArray = $question['options'] ?? [];
+                                if (!empty($optionsArray) && is_array($optionsArray)) {
+                                    $options = json_encode($optionsArray);
+                                    // Get correct answer index
+                                    $correctOptionIndex = $question['correct_option'] ?? null;
+                                    if ($correctOptionIndex !== null && isset($optionsArray[$correctOptionIndex])) {
+                                        $correctAnswer = (string)$correctOptionIndex;
+                                    }
+                                }
+                            } else {
+                                // For true/false and short_answer, use the correct_answer directly
+                                $correctAnswer = $question['correct_answer'] ?? '';
+                            }
+                            
+                            if (!empty($correctAnswer)) {
+                                $questionData = [
+                                    'quiz_id' => $quizId,
+                                    'question_text' => $question['question_text'],
+                                    'question_type' => $questionType,
+                                    'options' => $options,
+                                    'correct_answer' => $correctAnswer,
+                                    'points' => !empty($question['points']) ? (float)$question['points'] : 1.00,
+                                    'order_index' => $orderIndex++,
+                                ];
+                                $this->quizQuestionModel->insert($questionData);
+                            }
+                        }
+                    }
+                }
+
+                // Notify enrolled students
+                $this->notifyEnrolledStudents($courseId, $title, 'quiz');
+                
+                session()->setFlashdata('success', 'Quiz created successfully!');
+                return redirect()->to('/teacher/quizzes');
+            } else {
+                session()->setFlashdata('error', 'Failed to create quiz.');
+                return redirect()->back()->withInput();
+            }
+        }
+
+        $data = [
+            'title' => 'Create Quiz - Teacher Dashboard',
+            'courses' => $courses
+        ];
+
+        return view('teacher/create_quiz', $data);
+    }
+
+    /**
+     * View quiz submissions
+     */
+    public function viewQuizSubmissions($quizId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'teacher' && $userRole !== 'admin') {
+            return redirect()->to('/dashboard');
+        }
+
+        if (!$quizId) {
+            session()->setFlashdata('error', 'Quiz ID is required.');
+            return redirect()->to('/teacher/quizzes');
+        }
+
+        $quiz = $this->quizModel->getQuizWithDetails($quizId);
+        if (!$quiz) {
+            session()->setFlashdata('error', 'Quiz not found.');
+            return redirect()->to('/teacher/quizzes');
+        }
+
+        $submissions = $this->quizSubmissionModel->getSubmissionsByQuiz($quizId);
+
+        $data = [
+            'title' => 'Quiz Submissions - Teacher Dashboard',
+            'quiz' => $quiz,
+            'submissions' => $submissions
+        ];
+
+        return view('teacher/quiz_submissions', $data);
+    }
+
+    /**
+     * Grade a quiz submission
+     */
+    public function gradeQuizSubmission($submissionId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'teacher' && $userRole !== 'admin') {
+            return redirect()->to('/dashboard');
+        }
+
+        if (!$submissionId) {
+            session()->setFlashdata('error', 'Submission ID is required.');
+            return redirect()->back();
+        }
+
+        $submission = $this->quizSubmissionModel->find($submissionId);
+        if (!$submission) {
+            session()->setFlashdata('error', 'Submission not found.');
+            return redirect()->back();
+        }
+
+        if ($this->request->getMethod() === 'POST') {
+            $score = $this->request->getPost('score');
+            
+            if ($score !== null) {
+                $updateData = [
+                    'score' => (float)$score,
+                ];
+                
+                if ($this->quizSubmissionModel->update($submissionId, $updateData)) {
+                    session()->setFlashdata('success', 'Quiz submission graded successfully!');
+                    return redirect()->to('/teacher/quiz-submissions/' . $submission['quiz_id']);
+                } else {
+                    session()->setFlashdata('error', 'Failed to grade submission.');
+                }
+            }
+        }
+
+        $quiz = $this->quizModel->find($submission['quiz_id']);
+        $questions = $this->quizQuestionModel->getQuestionsByQuiz($submission['quiz_id']);
+        $submissionData = json_decode($submission['submission_data'], true);
+        $student = $this->userModel->find($submission['user_id']);
+
+        $data = [
+            'title' => 'Grade Quiz Submission - Teacher Dashboard',
+            'submission' => $submission,
+            'quiz' => $quiz,
+            'questions' => $questions,
+            'submissionData' => $submissionData,
+            'student' => $student
+        ];
+
+        return view('teacher/grade_quiz_submission', $data);
+    }
+
 }
 

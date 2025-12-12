@@ -133,9 +133,36 @@ class Materials extends BaseController
         log_message('info', 'Attempting to move file to: ' . $uploadPath . $newFileName);
         if ($file->move($uploadPath, $newFileName)) {
             log_message('info', 'File moved successfully!');
+            
+            // Get the teacher_id (always use the course's current instructor_id)
+            // This ensures that when a course is reassigned, the new teacher won't see old materials
+            $teacherId = null;
+            $userRole = session()->get('role');
+            
+            // Get the course's current instructor_id
+            if (class_exists('\App\Models\CourseModel')) {
+                $courseModel = new \App\Models\CourseModel();
+                $course = $courseModel->find($courseId);
+                if ($course && isset($course['instructor_id']) && !empty($course['instructor_id'])) {
+                    $teacherId = $course['instructor_id'];
+                }
+            }
+            
+            // If teacher is uploading, verify they are the assigned instructor
+            if ($userRole === 'teacher') {
+                $currentTeacherId = session()->get('userID');
+                // Only allow if the teacher is the assigned instructor for this course
+                if ($teacherId && $teacherId != $currentTeacherId) {
+                    log_message('error', "Teacher {$currentTeacherId} attempted to upload material for course {$courseId} assigned to teacher {$teacherId}");
+                    unlink($uploadPath . $newFileName);
+                    return redirect()->back()->with('error', 'You are not assigned to this course. Only the assigned instructor can upload materials.');
+                }
+            }
+            
             // Save file info to database
             $data = [
                 'course_id' => $courseId,
+                'teacher_id' => $teacherId,
                 'file_name' => $fileName,
                 'file_path' => $uploadPath . $newFileName,
                 'created_at' => date('Y-m-d H:i:s'),
@@ -206,6 +233,18 @@ class Materials extends BaseController
                 'success' => false,
                 'message' => 'Material not found.'
             ]);
+        }
+        
+        // For teachers, check if they can delete this material (must be their own)
+        if ($userRole === 'teacher') {
+            $currentTeacherId = session()->get('userID');
+            // Check if the material belongs to the current teacher
+            if (isset($material['teacher_id']) && $material['teacher_id'] != $currentTeacherId) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'You can only delete materials you uploaded.'
+                ]);
+            }
         }
 
         // Delete the physical file
@@ -315,14 +354,13 @@ class Materials extends BaseController
             return redirect()->back()->with('error', 'Course ID is required.');
         }
 
-        // TODO: Add enrollment check - verify if user is enrolled in the course (for students)
-        // For now, allow all logged-in users to view materials
+        // Get user role and ID
+        $userRole = session()->get('role');
+        $userId = session()->get('userID');
         
-        // Get materials for the course
-        $materials = $this->materialModel->getMaterialsByCourse($course_id);
-
         // Get course information (if CourseModel exists)
         $courseTitle = "Course #" . $course_id;
+        $course = null;
         if (class_exists('\App\Models\CourseModel')) {
             $courseModel = new \App\Models\CourseModel();
             $course = $courseModel->find($course_id);
@@ -330,6 +368,22 @@ class Materials extends BaseController
                 $courseTitle = $course['title'];
             }
         }
+        
+        // Filter materials based on user role
+        $teacherId = null;
+        if ($userRole === 'teacher') {
+            // Teachers can only see materials they uploaded
+            $teacherId = $userId;
+        } elseif ($userRole === 'admin') {
+            // Admins can see all materials (teacher_id = null)
+            $teacherId = null;
+        } elseif ($userRole === 'student') {
+            // Students see all materials for the course (no filter)
+            $teacherId = null;
+        }
+        
+        // Get materials for the course (filtered by teacher if applicable)
+        $materials = $this->materialModel->getMaterialsByCourse($course_id, $teacherId);
 
         $data = [
             'title' => 'Course Materials',

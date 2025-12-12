@@ -101,8 +101,20 @@
                                                 <i class="fas fa-download"></i> Download
                                             </a>
                                             
-                                            <!-- Delete Button (Only for admin/teacher) -->
-                                            <?php if(in_array(session('role'), ['admin', 'teacher'])): ?>
+                                            <!-- Delete Button (Only for admin/teacher, and for teachers only if it's their material) -->
+                                            <?php 
+                                            $userRole = session('role');
+                                            $userId = session('userID');
+                                            $canDelete = false;
+                                            
+                                            if ($userRole === 'admin') {
+                                                $canDelete = true;
+                                            } elseif ($userRole === 'teacher') {
+                                                // Teachers can only delete materials they uploaded
+                                                $canDelete = (isset($material['teacher_id']) && $material['teacher_id'] == $userId);
+                                            }
+                                            ?>
+                                            <?php if($canDelete): ?>
                                                 <button type="button" 
                                                         class="btn btn-sm btn-danger delete-material-btn" 
                                                         data-material-id="<?= $material['id'] ?>"

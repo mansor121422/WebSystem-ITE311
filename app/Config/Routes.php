@@ -111,6 +111,14 @@ $routes->group('teacher', ['filter' => 'roleauth'], function($routes) {
     $routes->get('view-submissions/(:num)', 'Teacher::viewSubmissions/$1');
     $routes->post('grade-submission', 'Teacher::gradeSubmission');
     $routes->get('download-submission/(:num)', 'Teacher::downloadSubmission/$1');
+    
+    // Quiz Routes
+    $routes->get('quizzes', 'Teacher::quizzes');
+    $routes->get('create-quiz', 'Teacher::createQuiz');
+    $routes->post('create-quiz', 'Teacher::createQuiz');
+    $routes->get('quiz-submissions/(:num)', 'Teacher::viewQuizSubmissions/$1');
+    $routes->get('grade-quiz-submission/(:num)', 'Teacher::gradeQuizSubmission/$1');
+    $routes->post('grade-quiz-submission/(:num)', 'Teacher::gradeQuizSubmission/$1');
 });
 
 // Student Routes - Protected by RoleAuth filter  
@@ -125,4 +133,11 @@ $routes->group('student', ['filter' => 'roleauth'], function($routes) {
     $routes->post('submit-assignment', 'Student::submitAssignment');
     $routes->get('download-submission/(:num)', 'Student::downloadSubmission/$1');
     $routes->get('grades', 'Student::grades'); // Future route
+    
+    // Quiz Routes
+    $routes->get('quizzes', 'Student::quizzes');
+    $routes->get('view-quiz/(:num)', 'Student::viewQuiz/$1');
+    $routes->get('take-quiz/(:num)', 'Student::takeQuiz/$1');
+    $routes->post('submit-quiz/(:num)', 'Student::submitQuiz/$1');
+    $routes->get('quiz-result/(:num)', 'Student::viewQuizResult/$1');
 });

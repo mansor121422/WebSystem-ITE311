@@ -53,3 +53,4 @@ class UserSeeder extends Seeder
         $this->db->query("UPDATE users SET role = 'student' WHERE email = 'student@example.com'");
     }
 }
+1

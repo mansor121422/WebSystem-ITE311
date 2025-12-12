@@ -136,15 +136,25 @@ class Admin extends BaseController
                 return redirect()->back()->withInput();
             }
 
-            // 1. Name Field Validation - Check for invalid characters
-            if (preg_match('/[\/\\\\"\'<>{}[\]!@#$%\^&*]/', $name)) {
-                session()->setFlashdata('error', '🔴 Name contains invalid characters.');
+            // 1. Name Field Validation - Only letters and spaces allowed
+            // Trim the name first
+            $name = trim($name);
+            
+            // Check if name contains only letters (including accented characters) and spaces
+            if (!preg_match('/^[a-zA-Z\s\p{L}]+$/u', $name)) {
+                session()->setFlashdata('error', '🔴 Name must contain only letters and spaces. No special characters, numbers, or symbols allowed.');
                 return redirect()->back()->withInput();
             }
             
-            // Additional check: Name should contain at least one letter
-            if (!preg_match('/[a-zA-Z]/', $name)) {
-                session()->setFlashdata('error', '🔴 Please enter a valid name (letters and spaces only).');
+            // Check that name has at least one letter
+            if (!preg_match('/[a-zA-Z\p{L}]/u', $name)) {
+                session()->setFlashdata('error', '🔴 Please enter a valid name (must contain at least one letter).');
+                return redirect()->back()->withInput();
+            }
+            
+            // Check that name doesn't have multiple consecutive spaces
+            if (preg_match('/\s{2,}/', $name)) {
+                session()->setFlashdata('error', '🔴 Name cannot contain multiple consecutive spaces.');
                 return redirect()->back()->withInput();
             }
 
@@ -262,14 +272,25 @@ class Admin extends BaseController
                 return redirect()->back()->withInput();
             }
 
-            // 1. Name Field Validation
-            if (preg_match('/[\/\\\\"\'<>{}[\]!@#$%\^&*]/', $name)) {
-                session()->setFlashdata('error', '🔴 Name contains invalid characters.');
+            // 1. Name Field Validation - Only letters and spaces allowed
+            // Trim the name first
+            $name = trim($name);
+            
+            // Check if name contains only letters (including accented characters) and spaces
+            if (!preg_match('/^[a-zA-Z\s\p{L}]+$/u', $name)) {
+                session()->setFlashdata('error', '🔴 Name must contain only letters and spaces. No special characters, numbers, or symbols allowed.');
                 return redirect()->back()->withInput();
             }
             
-            if (!preg_match('/[a-zA-Z]/', $name)) {
-                session()->setFlashdata('error', '🔴 Please enter a valid name (letters and spaces only).');
+            // Check that name has at least one letter
+            if (!preg_match('/[a-zA-Z\p{L}]/u', $name)) {
+                session()->setFlashdata('error', '🔴 Please enter a valid name (must contain at least one letter).');
+                return redirect()->back()->withInput();
+            }
+            
+            // Check that name doesn't have multiple consecutive spaces
+            if (preg_match('/\s{2,}/', $name)) {
+                session()->setFlashdata('error', '🔴 Name cannot contain multiple consecutive spaces.');
                 return redirect()->back()->withInput();
             }
 
@@ -497,6 +518,30 @@ class Admin extends BaseController
                 return redirect()->back()->withInput();
             }
 
+            // Validate title - only letters (including Ñ/ñ), spaces, and basic punctuation allowed
+            // Trim the title first
+            $title = trim($title);
+            
+            // Check if title contains only allowed characters: letters (including Ñ/ñ), spaces, and common punctuation
+            // Allow: letters (a-z, A-Z, including Ñ/ñ), spaces, and basic punctuation like comma, period, dash, parentheses
+            // Numbers are NOT allowed
+            if (!preg_match('/^[a-zA-ZÑñ\s\.,\-()]+$/u', $title)) {
+                session()->setFlashdata('error', 'Course title can only contain letters (including Ñ/ñ), spaces, and basic punctuation (., -). Numbers and special characters are not allowed.');
+                return redirect()->back()->withInput();
+            }
+            
+            // Check that title has at least one letter
+            if (!preg_match('/[a-zA-ZÑñ]/u', $title)) {
+                session()->setFlashdata('error', 'Course title must contain at least one letter.');
+                return redirect()->back()->withInput();
+            }
+            
+            // Check that title doesn't have multiple consecutive spaces
+            if (preg_match('/\s{2,}/', $title)) {
+                session()->setFlashdata('error', 'Course title cannot contain multiple consecutive spaces.');
+                return redirect()->back()->withInput();
+            }
+
             // Validate instructor if provided
             if (!empty($instructorId)) {
                 $instructor = $this->userModel->find($instructorId);
@@ -557,6 +602,28 @@ class Admin extends BaseController
                         session()->setFlashdata('error', 'Schedule conflict detected on ' . $day . '. Another course has the same schedule for this school year and semester.');
                         return redirect()->back()->withInput();
                     }
+                }
+            }
+
+            // Check for teacher schedule conflicts (if instructor and schedule information is provided)
+            if (!empty($instructorId) && !empty($scheduleDay) && !empty($scheduleTimeStart) && !empty($scheduleTimeEnd) && !empty($schoolYear) && !empty($semester)) {
+                $teacherConflicts = $this->courseModel->checkTeacherScheduleConflict(
+                    $instructorId,
+                    $scheduleDay,
+                    $scheduleTimeStart,
+                    $scheduleTimeEnd,
+                    $schoolYear,
+                    $semester
+                );
+                
+                if (!empty($teacherConflicts)) {
+                    $conflictMessages = [];
+                    foreach ($teacherConflicts as $conflict) {
+                        $conflictMessages[] = "Course '{$conflict['course_title']}' on {$conflict['day']} ({$conflict['existing_time']})";
+                    }
+                    $message = 'This teacher already has a conflicting schedule: ' . implode(', ', $conflictMessages);
+                    session()->setFlashdata('error', $message);
+                    return redirect()->back()->withInput();
                 }
             }
 
@@ -701,6 +768,30 @@ class Admin extends BaseController
                 return redirect()->back()->withInput();
             }
 
+            // Validate title - only letters (including Ñ/ñ), spaces, and basic punctuation allowed
+            // Trim the title first
+            $title = trim($title);
+            
+            // Check if title contains only allowed characters: letters (including Ñ/ñ), spaces, and common punctuation
+            // Allow: letters (a-z, A-Z, including Ñ/ñ), spaces, and basic punctuation like comma, period, dash, parentheses
+            // Numbers are NOT allowed
+            if (!preg_match('/^[a-zA-ZÑñ\s\.,\-()]+$/u', $title)) {
+                session()->setFlashdata('error', 'Course title can only contain letters (including Ñ/ñ), spaces, and basic punctuation (., -). Numbers and special characters are not allowed.');
+                return redirect()->back()->withInput();
+            }
+            
+            // Check that title has at least one letter
+            if (!preg_match('/[a-zA-ZÑñ]/u', $title)) {
+                session()->setFlashdata('error', 'Course title must contain at least one letter.');
+                return redirect()->back()->withInput();
+            }
+            
+            // Check that title doesn't have multiple consecutive spaces
+            if (preg_match('/\s{2,}/', $title)) {
+                session()->setFlashdata('error', 'Course title cannot contain multiple consecutive spaces.');
+                return redirect()->back()->withInput();
+            }
+
             // Validate instructor if provided
             if (!empty($instructorId)) {
                 $instructor = $this->userModel->find($instructorId);
@@ -766,6 +857,29 @@ class Admin extends BaseController
                         session()->setFlashdata('error', 'Schedule conflict detected on ' . $day . '. Another course has the same schedule for this school year and semester.');
                         return redirect()->back()->withInput();
                     }
+                }
+            }
+
+            // Check for teacher schedule conflicts (if instructor and schedule information is provided)
+            if (!empty($instructorId) && !empty($scheduleDay) && !empty($scheduleTimeStart) && !empty($scheduleTimeEnd) && !empty($schoolYear) && !empty($semester)) {
+                $teacherConflicts = $this->courseModel->checkTeacherScheduleConflict(
+                    $instructorId,
+                    $scheduleDay,
+                    $scheduleTimeStart,
+                    $scheduleTimeEnd,
+                    $schoolYear,
+                    $semester,
+                    $id
+                );
+                
+                if (!empty($teacherConflicts)) {
+                    $conflictMessages = [];
+                    foreach ($teacherConflicts as $conflict) {
+                        $conflictMessages[] = "Course '{$conflict['course_title']}' on {$conflict['day']} ({$conflict['existing_time']})";
+                    }
+                    $message = 'This teacher already has a conflicting schedule: ' . implode(', ', $conflictMessages);
+                    session()->setFlashdata('error', $message);
+                    return redirect()->back()->withInput();
                 }
             }
 
