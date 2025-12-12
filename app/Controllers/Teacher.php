@@ -542,6 +542,62 @@ class Teacher extends BaseController
     }
 
     /**
+     * Search and view students
+     */
+    public function students()
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'teacher' && $userRole !== 'admin') {
+            return redirect()->to('/dashboard');
+        }
+
+        $searchTerm = $this->request->getGet('q') ?? '';
+        $students = [];
+
+        if (!empty($searchTerm)) {
+            // Search students by name or email
+            $students = $this->userModel
+                ->where('role', 'student')
+                ->groupStart()
+                    ->like('name', $searchTerm)
+                    ->orLike('email', $searchTerm)
+                ->groupEnd()
+                ->orderBy('name', 'ASC')
+                ->findAll();
+        } else {
+            // If no search term, show all students (or limit to recent ones)
+            $students = $this->userModel
+                ->where('role', 'student')
+                ->orderBy('name', 'ASC')
+                ->findAll();
+        }
+
+        // Get enrollment information for each student
+        foreach ($students as &$student) {
+            $enrollments = $this->enrollmentModel
+                ->where('user_id', $student['id'])
+                ->findAll();
+            
+            $student['enrollment_count'] = count($enrollments);
+            $student['active_enrollments'] = count(array_filter($enrollments, function($e) {
+                return $e['status'] === 'active';
+            }));
+        }
+
+        $data = [
+            'title' => 'Search Students - Teacher Dashboard',
+            'students' => $students,
+            'search_term' => $searchTerm
+        ];
+
+        return view('teacher/students', $data);
+    }
+
+    /**
      * Create a new assignment
      */
     public function createAssignment()

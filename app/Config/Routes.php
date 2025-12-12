@@ -93,7 +93,7 @@ $routes->group('announcements', ['filter' => 'roleauth'], function($routes) {
 $routes->group('teacher', ['filter' => 'roleauth'], function($routes) {
     $routes->get('dashboard', 'Teacher::dashboard');
     $routes->get('courses', 'Teacher::courses'); // Future route
-    $routes->get('students', 'Teacher::students'); // Future route
+    $routes->get('students', 'Teacher::students');
     $routes->get('create', 'Teacher::create'); // Future route
     $routes->get('analytics', 'Teacher::analytics'); // Future route
     

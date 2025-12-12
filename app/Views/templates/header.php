@@ -2,16 +2,19 @@
 // Get current user role and login status with strict checking
 $isLoggedIn = false;
 $userRole = '';
+$userName = '';
 
 // Strict session validation - all conditions must be met
 $loggedIn = session('logged_in');
 $userID = session('userID');
 $role = session('role');
+$name = session('name');
 
 // Only consider user logged in if ALL session data is present and valid
 if ($loggedIn === true && !empty($userID) && !empty($role) && is_numeric($userID)) {
     $isLoggedIn = true;
     $userRole = $role;
+    $userName = $name ?? '';
 }
 
 $currentPage = $page ?? '';
@@ -50,6 +53,17 @@ $currentPage = $page ?? '';
         
         .navbar-custom .nav-link:hover {
             color: #f1f5f9 !important;
+        }
+        
+        .navbar-custom .nav-link .d-inline-block {
+            vertical-align: middle;
+        }
+        
+        .navbar-custom .nav-link small {
+            font-size: 0.7rem;
+            opacity: 0.9;
+            line-height: 1;
+            display: block;
         }
         
         .notification-dropdown {
@@ -148,6 +162,7 @@ $currentPage = $page ?? '';
                         <li class="nav-item"><a class="nav-link" href="<?= base_url('announcements') ?>">Announcements</a></li>
                     <?php elseif ($userRole === 'instructor' || $userRole === 'teacher'): ?>
                         <li class="nav-item"><a class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('teacher/dashboard') ?>">Dashboard</a></li>
+                        <li class="nav-item"><a class="nav-link" href="<?= base_url('teacher/students') ?>">Students</a></li>
                         <li class="nav-item"><a class="nav-link" href="<?= base_url('teacher/assignments') ?>">Assignments</a></li>
                         <li class="nav-item"><a class="nav-link" href="<?= base_url('teacher/quizzes') ?>">Quizzes</a></li>
                         <li class="nav-item"><a class="nav-link <?= $currentPage === 'courses' ? 'active' : '' ?>" href="<?= base_url('courses') ?>">Courses</a></li>
@@ -198,9 +213,24 @@ $currentPage = $page ?? '';
                     <!-- User Dropdown -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-person-circle"></i> <?= ucfirst($userRole) ?>
+                            <i class="bi bi-person-circle"></i> 
+                            <div class="d-inline-block">
+                                <div><?= ucfirst($userRole) ?></div>
+                                <?php if (!empty($userName)): ?>
+                                    <small class="d-block" style="font-size: 0.7rem; opacity: 0.9; line-height: 1;"><?= esc($userName) ?></small>
+                                <?php endif; ?>
+                            </div>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li class="px-3 py-2 border-bottom">
+                                <div class="fw-bold"><?= ucfirst($userRole) ?></div>
+                                <?php if (!empty($userName)): ?>
+                                    <small class="text-muted"><?= esc($userName) ?></small>
+                                <?php else: ?>
+                                    <small class="text-muted">User</small>
+                                <?php endif; ?>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="<?= base_url('profile') ?>"><i class="bi bi-person me-2"></i>Profile</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('settings') ?>"><i class="bi bi-gear me-2"></i>Settings</a></li>
                             <li><hr class="dropdown-divider"></li>
