@@ -36,8 +36,8 @@
 
                         <div class="mb-3">
                             <label for="file" class="form-label">Select File</label>
-                            <input type="file" class="form-control" id="file" name="file" required accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.txt">
-                            <div class="form-text">Allowed types: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, ZIP, TXT. Max size: 10MB</div>
+                            <input type="file" class="form-control" id="file" name="file" required accept=".pdf,.doc,.docx,.ppt,.pptx">
+                            <div class="form-text">Allowed types: PDF, DOC, DOCX, PPT, PPTX. Max size: 10MB</div>
                 </div>
 
                         <div class="d-grid gap-2">

@@ -113,10 +113,10 @@ class Materials extends BaseController
         }
         
         // Check file extension
-        $allowedExtensions = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'zip', 'txt'];
+        $allowedExtensions = ['pdf', 'doc', 'docx', 'ppt', 'pptx'];
         $fileExtension = strtolower($file->getClientExtension());
         if (!in_array($fileExtension, $allowedExtensions)) {
-            return redirect()->back()->with('error', 'File type not allowed. Allowed types: ' . implode(', ', $allowedExtensions));
+            return redirect()->back()->with('error', 'File type not allowed. Allowed types: PDF, DOC, DOCX, PPT, PPTX');
         }
 
         // Create upload directory if it doesn't exist
