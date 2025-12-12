@@ -114,61 +114,92 @@ class Course extends BaseController
         // Log the user_id being used
         log_message('info', "Attempting to enroll: User ID = {$userId}, Course ID = {$courseId}");
         
-        // Prepare enrollment data
+        // Get course from database to check if it exists and get instructor
+        $courseFromDb = $this->courseModel->find($courseId);
+        if (!$courseFromDb) {
+            // If course doesn't exist in database, create it temporarily
+            log_message('warning', "Course {$courseId} not found in database, creating it...");
+            $courseInsertQuery = $db->query("
+                INSERT IGNORE INTO courses (id, title, description, created_at, updated_at) 
+                VALUES (?, ?, ?, NOW(), NOW())
+            ", [$courseId, $course['title'], $course['description']]);
+            
+            if ($db->affectedRows() > 0) {
+                log_message('info', "Course {$courseId} created successfully");
+                $courseFromDb = $this->courseModel->find($courseId);
+            }
+        }
+
+        // Check for duplicate enrollment (including pending)
+        $existingEnrollment = $db->query("
+            SELECT * FROM enrollments 
+            WHERE user_id = ? AND course_id = ? 
+            AND (status = 'active' OR status = 'pending')
+        ", [$userId, $courseId]);
+        
+        if ($existingEnrollment->getNumRows() > 0) {
+            $existing = $existingEnrollment->getRowArray();
+            if ($existing['status'] === 'pending') {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'You already have a pending enrollment request for this course. Please wait for teacher approval.'
+                ]);
+            } else {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'You are already enrolled in this course.'
+                ]);
+            }
+        }
+
+        // Prepare enrollment data as PENDING (requires teacher approval)
         $enrollmentData = [
             'user_id' => $userId,
             'course_id' => $courseId,
-            'enrollment_date' => date('Y-m-d H:i:s')
+            'enrollment_date' => date('Y-m-d H:i:s'),
+            'status' => 'pending',
+            'progress' => 0.00,
+            'requested_by' => 'student',
+            'school_year' => $courseFromDb['school_year'] ?? null,
+            'semester' => $courseFromDb['semester'] ?? null
         ];
 
-        // Insert enrollment record using direct database query
+        // Insert enrollment record as PENDING
         try {
-            log_message('info', "About to insert: user_id={$userId}, course_id={$courseId}");
-            
-            // First verify that the course exists in the courses table
-            $courseExistsQuery = $db->query("SELECT id FROM courses WHERE id = ?", [$courseId]);
-            if ($courseExistsQuery->getNumRows() == 0) {
-                // If course doesn't exist in database, create it temporarily
-                log_message('warning', "Course {$courseId} not found in database, creating it...");
-                
-                $courseInsertQuery = $db->query("
-                    INSERT IGNORE INTO courses (id, title, description, created_at, updated_at) 
-                    VALUES (?, ?, ?, NOW(), NOW())
-                ", [$courseId, $course['title'], $course['description']]);
-                
-                if ($db->affectedRows() > 0) {
-                    log_message('info', "Course {$courseId} created successfully");
-                } else {
-                    log_message('info', "Course {$courseId} already exists or insert failed");
-                }
-            }
+            log_message('info', "Creating pending enrollment request: user_id={$userId}, course_id={$courseId}");
             
             $insertQuery = $db->query("
-                INSERT INTO enrollments (user_id, course_id, enrollment_date, status, progress, created_at, updated_at) 
-                VALUES (?, ?, ?, 'active', 0.00, NOW(), NOW())
-            ", [$userId, $courseId, $enrollmentData['enrollment_date']]);
+                INSERT INTO enrollments (user_id, course_id, enrollment_date, status, progress, requested_by, school_year, semester, created_at, updated_at) 
+                VALUES (?, ?, ?, 'pending', 0.00, 'student', ?, ?, NOW(), NOW())
+            ", [
+                $userId, 
+                $courseId, 
+                $enrollmentData['enrollment_date'],
+                $enrollmentData['school_year'],
+                $enrollmentData['semester']
+            ]);
             
             if ($db->affectedRows() > 0) {
-                log_message('info', "Enrollment successful!");
+                log_message('info', "Pending enrollment request created successfully!");
                 
-                // Step 7: Create notification for successful enrollment
-                try {
-                    $notificationMessage = "You have been successfully enrolled in '{$course['title']}'. Welcome to the course!";
-                    $notificationCreated = $this->notificationModel->createNotification($userId, $notificationMessage);
-                    
-                    if ($notificationCreated) {
-                        log_message('info', "Enrollment notification created for user {$userId}");
-                    } else {
-                        log_message('warning', "Failed to create enrollment notification for user {$userId}");
-                    }
-                } catch (\Exception $e) {
-                    // Don't fail the enrollment if notification creation fails
-                    log_message('error', "Notification creation failed: " . $e->getMessage());
+                // Notify teacher about the enrollment request
+                $teacherId = $courseFromDb['instructor_id'] ?? null;
+                if ($teacherId) {
+                    $studentName = session('name');
+                    $courseTitle = $courseFromDb['title'] ?? $course['title'];
+                    $courseCode = $courseFromDb['course_code'] ?? '';
+                    $message = "New enrollment request from {$studentName} for course '{$courseTitle}'" . 
+                               ($courseCode ? " ({$courseCode})" : "") . ". Please review and approve or reject.";
+                    $this->notificationModel->createNotification($teacherId, $message);
                 }
+                
+                // Notify student that request was sent
+                $notificationMessage = "Your enrollment request for '{$course['title']}' has been sent. Waiting for teacher approval.";
+                $this->notificationModel->createNotification($userId, $notificationMessage);
                 
                 return $this->response->setJSON([
                     'success' => true,
-                    'message' => 'Successfully enrolled in ' . $course['title'] . '!',
+                    'message' => 'Enrollment request sent! Waiting for teacher approval.',
                     'course' => [
                         'id' => $course['id'],
                         'title' => $course['title'],
@@ -181,7 +212,7 @@ class Course extends BaseController
                 
                 return $this->response->setJSON([
                     'success' => false,
-                    'message' => 'Failed to enroll in course. Please try again.'
+                    'message' => 'Failed to create enrollment request. Please try again.'
                 ]);
             }
         } catch (\Exception $e) {
@@ -189,7 +220,7 @@ class Course extends BaseController
             
             return $this->response->setJSON([
                 'success' => false,
-                'message' => 'An error occurred while enrolling: ' . $e->getMessage()
+                'message' => 'An error occurred while creating enrollment request: ' . $e->getMessage()
             ]);
         }
     }
@@ -254,12 +285,12 @@ class Course extends BaseController
             4 => ['title' => 'Data Structures & Algorithms', 'description' => 'Advanced programming concepts and problem solving', 'duration' => 720]
         ];
         
-        // Get enrolled courses from database
+        // Get enrolled courses from database (only active enrollments)
         $db = \Config\Database::connect();
         $enrolledQuery = $db->query("
             SELECT course_id, enrollment_date, status, progress
             FROM enrollments
-            WHERE user_id = ?
+            WHERE user_id = ? AND status = 'active'
             ORDER BY enrollment_date DESC
         ", [$userId]);
         
@@ -318,7 +349,7 @@ class Course extends BaseController
     /**
      * Search courses
      * Step 2: Search controller method that accepts GET or POST requests
-     * Uses CodeIgniter's Query Builder with LIKE queries
+     * Uses CodeIgniter's Query Builder with LIKE queries (case-insensitive)
      * Returns JSON for AJAX requests or renders view for regular requests
      */
     public function search()
@@ -339,68 +370,83 @@ class Course extends BaseController
         $searchTerm = $this->request->getGet('q') ?? $this->request->getPost('q') ?? '';
         $searchTerm = trim($searchTerm);
 
+        // Get user role to determine view type
+        $userRole = strtolower(session('role') ?? '');
+        $isAdmin = ($userRole === 'admin');
+
         // Use CodeIgniter's Query Builder to search courses table with LIKE queries
         $db = \Config\Database::connect();
-        $builder = $db->table('courses');
+        
+        if ($isAdmin) {
+            // For admin: Get detailed course information with instructor and enrollment count
+            $builder = $db->table('courses c');
+            $builder->select('c.*, u.name as instructor_name, u.email as instructor_email,
+                           (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id AND status = \'active\') as enrollment_count');
+            $builder->join('users u', 'u.id = c.instructor_id', 'left');
+        } else {
+            // For regular users: Simple course query
+            $builder = $db->table('courses');
+        }
 
         if (!empty($searchTerm)) {
-            // Search in title and description using LIKE
-            $builder->groupStart()
-                    ->like('title', $searchTerm)
-                    ->orLike('description', $searchTerm)
-                    ->groupEnd();
+            // Case-insensitive search in title, description, and course_code
+            // Escape search term to prevent SQL injection
+            $escapedTerm = $db->escapeLikeString($searchTerm);
+            
+            if ($isAdmin) {
+                // For admin: search in c.title, c.description, c.course_code
+                // MySQL LIKE is case-insensitive by default for VARCHAR columns
+                $builder->groupStart()
+                        ->like('c.title', $escapedTerm, 'both')
+                        ->orLike('c.description', $escapedTerm, 'both')
+                        ->orLike('c.course_code', $escapedTerm, 'both')
+                        ->groupEnd();
+            } else {
+                // For regular users: search in title, description, course_code
+                $builder->groupStart()
+                        ->like('title', $escapedTerm, 'both')
+                        ->orLike('description', $escapedTerm, 'both')
+                        ->orLike('course_code', $escapedTerm, 'both')
+                        ->groupEnd();
+            }
         }
 
         // Get all courses (or filtered by search term)
-        $courses = $builder->orderBy('title', 'ASC')->get()->getResultArray();
+        if ($isAdmin) {
+            $courses = $builder->orderBy('c.title', 'ASC')->get()->getResultArray();
+        } else {
+            $courses = $builder->orderBy('title', 'ASC')->get()->getResultArray();
+        }
 
-        // Format courses data (matching the hardcoded structure)
-        $courseData = [
-            1 => ['title' => 'Introduction to Programming', 'description' => 'Learn the fundamentals of programming with Python', 'duration' => 480],
-            2 => ['title' => 'Web Development Basics', 'description' => 'HTML, CSS, and JavaScript fundamentals', 'duration' => 360],
-            3 => ['title' => 'Database Management', 'description' => 'SQL and database design principles', 'duration' => 600],
-            4 => ['title' => 'Data Structures & Algorithms', 'description' => 'Advanced programming concepts and problem solving', 'duration' => 720]
-        ];
-
-        // Format results
+        // Format results based on user role
         $formattedCourses = [];
         foreach ($courses as $course) {
-            $courseId = $course['id'];
-            // Use database data if available, otherwise use hardcoded data
-            if (isset($courseData[$courseId])) {
-                $formattedCourses[] = [
-                    'id' => $courseId,
-                    'title' => $course['title'] ?? $courseData[$courseId]['title'],
-                    'description' => $course['description'] ?? $courseData[$courseId]['description'],
-                    'instructor' => 'Teacher User',
-                    'duration' => ($courseData[$courseId]['duration'] ?? 0) . ' minutes'
-                ];
-            } else {
-                // If course exists in DB but not in hardcoded data, use DB data
+            if ($isAdmin) {
+                // Admin view: Show detailed information
                 $formattedCourses[] = [
                     'id' => $course['id'],
-                    'title' => $course['title'],
+                    'title' => $course['title'] ?? '',
+                    'description' => $course['description'] ?? '',
+                    'instructor' => $course['instructor_name'] ?? 'Unassigned',
+                    'instructor_email' => $course['instructor_email'] ?? '',
+                    'course_code' => $course['course_code'] ?? null,
+                    'school_year' => $course['school_year'] ?? null,
+                    'semester' => $course['semester'] ?? null,
+                    'schedule_day' => $course['schedule_day'] ?? null,
+                    'schedule_time_start' => $course['schedule_time_start'] ?? null,
+                    'schedule_time_end' => $course['schedule_time_end'] ?? null,
+                    'enrollment_count' => $course['enrollment_count'] ?? 0,
+                    'created_at' => $course['created_at'] ?? null
+                ];
+            } else {
+                // Regular user view: Show simplified information
+                $formattedCourses[] = [
+                    'id' => $course['id'],
+                    'title' => $course['title'] ?? '',
                     'description' => $course['description'] ?? '',
                     'instructor' => 'Teacher User',
                     'duration' => '0 minutes'
                 ];
-            }
-        }
-
-        // If no courses in database, use hardcoded courses and filter them
-        if (empty($courses)) {
-            foreach ($courseData as $id => $course) {
-                if (empty($searchTerm) || 
-                    stripos($course['title'], $searchTerm) !== false || 
-                    stripos($course['description'], $searchTerm) !== false) {
-                    $formattedCourses[] = [
-                        'id' => $id,
-                        'title' => $course['title'],
-                        'description' => $course['description'],
-                        'instructor' => 'Teacher User',
-                        'duration' => $course['duration'] . ' minutes'
-                    ];
-                }
             }
         }
 
@@ -425,12 +471,21 @@ class Course extends BaseController
             ]);
         }
 
+        // Get teachers list for admin (for add course form)
+        $teachers = [];
+        if ($isAdmin) {
+            $userModel = new \App\Models\UserModel();
+            $teachers = $userModel->where('role', 'teacher')->findAll();
+        }
+
         // Render view for regular requests
         $data = [
             'title' => 'Search Courses',
             'courses' => $formattedCourses,
             'search_term' => $searchTerm,
-            'page' => 'courses'
+            'page' => 'courses',
+            'isAdmin' => $isAdmin,
+            'teachers' => $teachers
         ];
 
         return view('courses/index', $data);
@@ -446,8 +501,24 @@ class Course extends BaseController
             return redirect()->to('/login');
         }
 
-        // Get all courses
-        $courses = $this->courseModel->getAvailableCourses();
+        // Get all courses with instructor information for admin
+        $userRole = strtolower(session('role') ?? '');
+        $isAdmin = ($userRole === 'admin');
+        
+        if ($isAdmin) {
+            // For admin: Get detailed course information
+            $db = \Config\Database::connect();
+            $courses = $db->query("
+                SELECT c.*, u.name as instructor_name, u.email as instructor_email,
+                       (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id AND status = 'active') as enrollment_count
+                FROM courses c
+                LEFT JOIN users u ON u.id = c.instructor_id
+                ORDER BY c.created_at DESC
+            ")->getResultArray();
+        } else {
+            // For regular users: Get available courses
+            $courses = $this->courseModel->getAvailableCourses();
+        }
 
         // Format courses data
         $courseData = [
@@ -461,19 +532,41 @@ class Course extends BaseController
         $formattedCourses = [];
         foreach ($courses as $course) {
             $courseId = $course['id'];
-            if (isset($courseData[$courseId])) {
+            
+            if ($isAdmin) {
+                // Admin view: Show detailed information
                 $formattedCourses[] = [
                     'id' => $courseId,
-                    'title' => $course['title'] ?? $courseData[$courseId]['title'],
-                    'description' => $course['description'] ?? $courseData[$courseId]['description'],
-                    'instructor' => 'Teacher User',
-                    'duration' => ($courseData[$courseId]['duration'] ?? 0) . ' minutes'
+                    'title' => $course['title'],
+                    'description' => $course['description'] ?? '',
+                    'instructor' => $course['instructor_name'] ?? 'Unassigned',
+                    'instructor_email' => $course['instructor_email'] ?? '',
+                    'duration' => ($courseData[$courseId]['duration'] ?? 0) . ' minutes',
+                    'course_code' => $course['course_code'] ?? null,
+                    'school_year' => $course['school_year'] ?? null,
+                    'semester' => $course['semester'] ?? null,
+                    'schedule_day' => $course['schedule_day'] ?? null,
+                    'schedule_time_start' => $course['schedule_time_start'] ?? null,
+                    'schedule_time_end' => $course['schedule_time_end'] ?? null,
+                    'enrollment_count' => $course['enrollment_count'] ?? 0,
+                    'created_at' => $course['created_at'] ?? null
                 ];
+            } else {
+                // Regular user view: Show simplified information
+                if (isset($courseData[$courseId])) {
+                    $formattedCourses[] = [
+                        'id' => $courseId,
+                        'title' => $course['title'] ?? $courseData[$courseId]['title'],
+                        'description' => $course['description'] ?? $courseData[$courseId]['description'],
+                        'instructor' => 'Teacher User',
+                        'duration' => ($courseData[$courseId]['duration'] ?? 0) . ' minutes'
+                    ];
+                }
             }
         }
 
-        // If no courses in database, use hardcoded courses
-        if (empty($formattedCourses)) {
+        // If no courses in database and not admin, use hardcoded courses
+        if (empty($formattedCourses) && !$isAdmin) {
             foreach ($courseData as $id => $course) {
                 $formattedCourses[] = [
                     'id' => $id,
@@ -485,11 +578,22 @@ class Course extends BaseController
             }
         }
 
+        // Get teachers list for admin (for add course form)
+        $teachers = [];
+        $userRole = strtolower(session('role') ?? '');
+        $isAdmin = ($userRole === 'admin');
+        if ($isAdmin) {
+            $userModel = new \App\Models\UserModel();
+            $teachers = $userModel->where('role', 'teacher')->findAll();
+        }
+
         $data = [
             'title' => 'All Courses',
             'courses' => $formattedCourses,
             'search_term' => '',
-            'page' => 'courses'
+            'page' => 'courses',
+            'isAdmin' => $isAdmin,
+            'teachers' => $teachers
         ];
 
         return view('courses/index', $data);

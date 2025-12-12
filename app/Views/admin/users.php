@@ -140,6 +140,68 @@
             </div>
         <?php endif; ?>
     </div>
+
+    <!-- Deleted Users Section -->
+    <?php if (!empty($deletedUsers)): ?>
+        <div class="table-section deleted-users-section">
+            <div class="table-header">
+                <h3>
+                    <i class="fas fa-trash"></i> Deleted Users
+                </h3>
+                <span class="user-count"><?= count($deletedUsers) ?> deleted user(s)</span>
+            </div>
+            <div class="table-responsive">
+                <table class="users-table deleted-users-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Deleted At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach($deletedUsers as $user): ?>
+                            <tr class="deleted-row">
+                                <td><?= esc($user['id']) ?></td>
+                                <td>
+                                    <div class="user-info">
+                                        <div class="user-avatar deleted-avatar">
+                                            <?= strtoupper(substr($user['name'], 0, 1)) ?>
+                                        </div>
+                                        <span class="deleted-name"><?= esc($user['name']) ?></span>
+                                    </div>
+                                </td>
+                                <td class="deleted-email"><?= esc($user['email']) ?></td>
+                                <td>
+                                    <span class="role-badge role-<?= strtolower($user['role']) ?>">
+                                        <?= ucfirst(esc($user['role'])) ?>
+                                    </span>
+                                </td>
+                                <td><?= date('M d, Y H:i', strtotime($user['deleted_at'])) ?></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <form method="post" action="<?= base_url('admin/users/restore/' . $user['id']) ?>" style="display: inline;">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" 
+                                                    class="action-btn action-btn-restore" 
+                                                    title="Restore User"
+                                                    onclick="return confirm('Are you sure you want to restore this user?')">
+                                                <i class="fas fa-undo"></i>
+                                                <span>Restore</span>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <?php endif; ?>
 </div>
 
 <!-- Delete Confirmation Modal -->
@@ -152,7 +214,7 @@
             <button type="button" class="delete-modal-close" onclick="closeDeleteModal()">&times;</button>
         </div>
         <div class="delete-modal-body">
-            <p>Are you sure you want to delete this user? This action cannot be undone.</p>
+            <p>Are you sure you want to delete this user? The user will be moved to the deleted users section and can be restored later.</p>
             <div class="delete-warning-box">
                 <strong>User Details:</strong>
                 <ul>
@@ -161,7 +223,7 @@
                 </ul>
             </div>
             <p class="delete-warning-text">
-                <i class="fas fa-info-circle"></i> All associated data will be permanently removed.
+                <i class="fas fa-info-circle"></i> The user will be hidden from the active users list but can be restored at any time.
             </p>
         </div>
         <div class="delete-modal-footer">
@@ -556,6 +618,24 @@ document.addEventListener('DOMContentLoaded', function() {
         box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
     }
 
+    .action-btn-restore {
+        background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+        color: #ffffff;
+        border: 1px solid #388e3c;
+    }
+
+    .action-btn-restore:hover {
+        background: linear-gradient(135deg, #388e3c 0%, #2e7d32 100%);
+        color: #ffffff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+    }
+
+    .action-btn-restore:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+    }
+
     .action-icon.disabled {
         background: #f5f5f5;
         color: #9e9e9e;
@@ -592,6 +672,43 @@ document.addEventListener('DOMContentLoaded', function() {
     .empty-state h3 {
         color: #495057;
         margin: 1rem 0 0.5rem 0;
+    }
+
+    /* Deleted Users Section */
+    .deleted-users-section {
+        margin-top: 2rem;
+        border-top: 2px solid #e9ecef;
+        padding-top: 2rem;
+    }
+
+    .deleted-users-section .table-header h3 {
+        color: #6c757d;
+    }
+
+    .deleted-users-section .table-header h3 i {
+        color: #dc3545;
+        margin-right: 0.5rem;
+    }
+
+    .deleted-users-table tbody tr {
+        opacity: 0.7;
+        background: #f8f9fa;
+    }
+
+    .deleted-users-table tbody tr:hover {
+        opacity: 0.9;
+        background: #e9ecef;
+    }
+
+    .deleted-row .deleted-name,
+    .deleted-row .deleted-email {
+        text-decoration: line-through;
+        color: #6c757d;
+    }
+
+    .deleted-avatar {
+        background: #6c757d !important;
+        opacity: 0.7;
     }
 
     .alert {

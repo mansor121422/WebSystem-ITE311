@@ -12,7 +12,20 @@ class CourseModel extends Model
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
-    protected $allowedFields    = ['title', 'description', 'created_at', 'updated_at'];
+    protected $allowedFields    = [
+        'title', 
+        'description', 
+        'instructor_id',
+        'course_code',
+        'school_year',
+        'semester',
+        'schedule_day',
+        'schedule_time_start',
+        'schedule_time_end',
+        'max_students',
+        'created_at', 
+        'updated_at'
+    ];
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
@@ -111,5 +124,68 @@ class CourseModel extends Model
                     ->orderBy('enrollment_count', 'DESC')
                     ->limit($limit)
                     ->findAll();
+    }
+
+    /**
+     * Check for duplicate course code and title combination
+     * Since course code and title are NOT unique, we need strict validation
+     */
+    public function checkDuplicateCourse($courseCode, $title, $schoolYear, $semester, $excludeId = null)
+    {
+        $query = $this->where('course_code', $courseCode)
+                     ->where('title', $title)
+                     ->where('school_year', $schoolYear)
+                     ->where('semester', $semester);
+        
+        if ($excludeId) {
+            $query->where('id !=', $excludeId);
+        }
+        
+        return $query->first();
+    }
+
+    /**
+     * Check for schedule conflicts with other courses
+     * Handles both single day and multiple days (comma-separated)
+     */
+    public function checkScheduleConflict($scheduleDay, $timeStart, $timeEnd, $schoolYear, $semester, $excludeId = null)
+    {
+        // Check if schedule_day contains the specified day (handles comma-separated values)
+        $query = $this->where('school_year', $schoolYear)
+                     ->where('semester', $semester)
+                     ->groupStart()
+                         ->like('schedule_day', $scheduleDay)
+                         ->orWhere('schedule_day', $scheduleDay)
+                     ->groupEnd()
+                     ->groupStart()
+                         ->groupStart()
+                             ->where('schedule_time_start <=', $timeStart)
+                             ->where('schedule_time_end >', $timeStart)
+                         ->groupEnd()
+                         ->orGroupStart()
+                             ->where('schedule_time_start <', $timeEnd)
+                             ->where('schedule_time_end >=', $timeEnd)
+                         ->groupEnd()
+                         ->orGroupStart()
+                             ->where('schedule_time_start >=', $timeStart)
+                             ->where('schedule_time_end <=', $timeEnd)
+                         ->groupEnd()
+                     ->groupEnd();
+        
+        if ($excludeId) {
+            $query->where('id !=', $excludeId);
+        }
+        
+        return $query->findAll();
+    }
+
+    /**
+     * Get courses by school year and semester
+     */
+    public function getCoursesBySemester($schoolYear, $semester)
+    {
+        return $this->where('school_year', $schoolYear)
+                   ->where('semester', $semester)
+                   ->findAll();
     }
 }

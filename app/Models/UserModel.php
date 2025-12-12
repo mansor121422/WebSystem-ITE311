@@ -10,7 +10,8 @@ class UserModel extends Model
     protected $primaryKey = 'id';
     protected $useAutoIncrement = true;
     protected $returnType = 'array';
-    protected $useSoftDeletes = false;
+    protected $useSoftDeletes = true;
+    protected $deletedField = 'deleted_at';
 
     protected $allowedFields = [
         'name',
@@ -18,7 +19,8 @@ class UserModel extends Model
         'password',
         'role',
         'created_at',
-        'updated_at'
+        'updated_at',
+        'deleted_at'
     ];
 
     // Dates
@@ -41,6 +43,22 @@ class UserModel extends Model
     public function findByEmail(string $email)
     {
         return $this->where('email', $email)->first();
+    }
+
+    /**
+     * Get deleted users
+     */
+    public function getDeletedUsers()
+    {
+        return $this->onlyDeleted()->findAll();
+    }
+
+    /**
+     * Restore a deleted user
+     */
+    public function restoreUser(int $id)
+    {
+        return $this->withDeleted()->update($id, ['deleted_at' => null]);
     }
 
     /**

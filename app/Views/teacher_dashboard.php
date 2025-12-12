@@ -99,9 +99,13 @@
         <i class="fas fa-bolt"></i> Quick Actions
     </div>
     <div class="actions-compact">
+        <a href="<?= base_url('teacher/enrollment-requests') ?>" class="action-item">
+            <i class="fas fa-user-check"></i>
+            <span>Enrollment Requests</span>
+        </a>
         <a href="<?= base_url('teacher/enroll-student') ?>" class="action-item">
             <i class="fas fa-user-plus"></i>
-            <span>Enroll Student</span>
+            <span>Force Enroll Student</span>
         </a>
         <a href="<?= base_url('teacher/create-assignment') ?>" class="action-item">
             <i class="fas fa-file-alt"></i>

@@ -260,6 +260,9 @@ class Auth extends BaseController
             $data['totalUsers'] = 3; // Placeholder
             $data['totalCourses'] = 4; // Placeholder
             $data['recentUsers'] = []; // Placeholder
+            // Get courses for materials management modal
+            $courseModel = new \App\Models\CourseModel();
+            $data['courses'] = $courseModel->orderBy('title', 'ASC')->findAll();
         } elseif ($role === 'teacher') {
             $data['myCourses'] = ['Math 101', 'Science 202']; // Placeholder
             $data['pendingAssignments'] = 5; // Placeholder

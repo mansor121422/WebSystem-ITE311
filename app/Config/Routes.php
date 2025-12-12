@@ -69,7 +69,12 @@ $routes->group('admin', ['filter' => 'roleauth'], function($routes) {
     $routes->post('users/edit/(:num)', 'Admin::editUser/$1');
     $routes->get('users/delete/(:num)', 'Admin::deleteUser/$1');
     $routes->post('users/delete/(:num)', 'Admin::deleteUser/$1');
-    $routes->get('courses', 'Admin::courses'); // Future route
+    $routes->get('users/restore/(:num)', 'Admin::restoreUser/$1');
+    $routes->post('users/restore/(:num)', 'Admin::restoreUser/$1');
+    $routes->post('courses/create', 'Admin::createCourse');
+    $routes->get('courses/edit/(:num)', 'Admin::editCourse/$1');
+    $routes->post('courses/update/(:num)', 'Admin::updateCourse/$1');
+    $routes->post('courses/delete/(:num)', 'Admin::deleteCourse/$1');
     $routes->get('reports', 'Admin::reports'); // Future route
     $routes->get('settings', 'Admin::settings'); // Future route
     
@@ -94,7 +99,10 @@ $routes->group('teacher', ['filter' => 'roleauth'], function($routes) {
     
     // Enrollment Routes
     $routes->get('enroll-student', 'Teacher::enrollStudentPage');
-    $routes->post('enroll-student', 'Teacher::enrollStudent');
+    $routes->post('enroll-student', 'Teacher::forceEnrollStudent');
+    $routes->get('enrollment-requests', 'Teacher::enrollmentRequests');
+    $routes->post('enrollment-requests/approve/(:num)', 'Teacher::approveEnrollment/$1');
+    $routes->post('enrollment-requests/reject/(:num)', 'Teacher::rejectEnrollmentRequest/$1');
     
     // Assignment Routes
     $routes->get('create-assignment', 'Teacher::createAssignment');
@@ -109,6 +117,7 @@ $routes->group('teacher', ['filter' => 'roleauth'], function($routes) {
 $routes->group('student', ['filter' => 'roleauth'], function($routes) {
     $routes->get('courses', 'Student::courses');
     $routes->get('pending-enrollments', 'Student::pendingEnrollments');
+    $routes->post('enrollments/request', 'Student::requestEnrollment');
     $routes->post('enrollments/accept/(:num)', 'Student::acceptEnrollment/$1');
     $routes->post('enrollments/reject/(:num)', 'Student::rejectEnrollment/$1');
     $routes->get('assignments', 'Student::assignments');

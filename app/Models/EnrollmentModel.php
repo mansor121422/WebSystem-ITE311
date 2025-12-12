@@ -12,7 +12,21 @@ class EnrollmentModel extends Model
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
-    protected $allowedFields    = ['user_id', 'course_id', 'enrollment_date', 'semester_end_date', 'status', 'progress', 'created_at', 'updated_at'];
+    protected $allowedFields    = [
+        'user_id', 
+        'course_id', 
+        'enrollment_date', 
+        'semester_end_date', 
+        'status', 
+        'progress', 
+        'school_year',
+        'semester',
+        'requested_by',
+        'approved_by',
+        'approved_at',
+        'created_at', 
+        'updated_at'
+    ];
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
@@ -165,5 +179,148 @@ class EnrollmentModel extends Model
                     ->join('courses', 'courses.id = enrollments.course_id')
                     ->orderBy('enrollments.enrollment_date', 'DESC')
                     ->findAll();
+    }
+
+    /**
+     * Check for schedule conflicts for a student
+     * Validates that the student doesn't have overlapping class schedules
+     * Handles multiple schedule days (comma-separated)
+     */
+    public function checkStudentScheduleConflict($studentId, $courseId, $schoolYear, $semester)
+    {
+        // Get the course schedule
+        $course = $this->db->table('courses')
+                          ->where('id', $courseId)
+                          ->get()
+                          ->getRowArray();
+        
+        if (!$course || empty($course['schedule_day']) || empty($course['schedule_time_start']) || empty($course['schedule_time_end'])) {
+            // No schedule conflict if course has no schedule
+            return false;
+        }
+
+        // Get all active enrollments for this student in the same school year and semester
+        $enrollments = $this->select('enrollments.*, courses.schedule_day, courses.schedule_time_start, courses.schedule_time_end')
+                           ->join('courses', 'courses.id = enrollments.course_id')
+                           ->where('enrollments.user_id', $studentId)
+                           ->where('enrollments.school_year', $schoolYear)
+                           ->where('enrollments.semester', $semester)
+                           ->whereIn('enrollments.status', ['active', 'pending'])
+                           ->where('enrollments.course_id !=', $courseId)
+                           ->findAll();
+
+        // Parse course schedule days (handle comma-separated)
+        $courseDays = array_map('trim', explode(',', $course['schedule_day']));
+        $courseStart = strtotime($course['schedule_time_start']);
+        $courseEnd = strtotime($course['schedule_time_end']);
+
+        // Check for time conflicts
+        foreach ($enrollments as $enrollment) {
+            if (empty($enrollment['schedule_day']) || empty($enrollment['schedule_time_start']) || empty($enrollment['schedule_time_end'])) {
+                continue;
+            }
+
+            // Parse enrollment schedule days (handle comma-separated)
+            $enrollmentDays = array_map('trim', explode(',', $enrollment['schedule_day']));
+            
+            // Check if any days overlap
+            $commonDays = array_intersect($courseDays, $enrollmentDays);
+            if (!empty($commonDays)) {
+                // Check for time overlap
+                $enrollmentStart = strtotime($enrollment['schedule_time_start']);
+                $enrollmentEnd = strtotime($enrollment['schedule_time_end']);
+
+                // Check if times overlap
+                if (($courseStart < $enrollmentEnd) && ($courseEnd > $enrollmentStart)) {
+                    $conflictDay = implode(', ', $commonDays);
+                    return [
+                        'conflict' => true,
+                        'conflicting_course' => $enrollment,
+                        'message' => "Schedule conflict on {$conflictDay} {$enrollment['schedule_time_start']}-{$enrollment['schedule_time_end']}"
+                    ];
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if student is already enrolled in same course for same school year and semester
+     */
+    public function checkDuplicateEnrollment($studentId, $courseId, $schoolYear, $semester)
+    {
+        return $this->where('user_id', $studentId)
+                   ->where('course_id', $courseId)
+                   ->where('school_year', $schoolYear)
+                   ->where('semester', $semester)
+                   ->whereIn('status', ['active', 'pending'])
+                   ->first();
+    }
+
+    /**
+     * Get pending enrollment requests for teacher approval
+     */
+    public function getPendingRequestsForTeacher($teacherId)
+    {
+        // Use raw query to handle NULL instructor_id cases more reliably
+        // Show requests where: course instructor matches teacher OR course has no instructor (unassigned courses)
+        // For now, show ALL pending requests to teachers (can be filtered later if needed)
+        $db = \Config\Database::connect();
+        $query = $db->query("
+            SELECT e.*, 
+                   u.name as student_name, 
+                   u.email as student_email, 
+                   COALESCE(c.title, CONCAT('Course #', e.course_id)) as course_title, 
+                   c.course_code, 
+                   COALESCE(e.school_year, c.school_year) as school_year, 
+                   COALESCE(e.semester, c.semester) as semester, 
+                   c.instructor_id,
+                   t.name as teacher_name,
+                   c.schedule_day,
+                   c.schedule_time_start,
+                   c.schedule_time_end
+            FROM enrollments e
+            LEFT JOIN users u ON u.id = e.user_id
+            LEFT JOIN courses c ON c.id = e.course_id
+            LEFT JOIN users t ON t.id = c.instructor_id
+            WHERE e.status = 'pending'
+            ORDER BY e.enrollment_date DESC
+        ");
+        
+        return $query->getResultArray();
+    }
+
+    /**
+     * Get enrollment requests for admin
+     * Admin should see ALL pending enrollment requests
+     */
+    public function getPendingRequestsForAdmin()
+    {
+        // Use raw query for consistency and to handle all edge cases
+        // Admin sees ALL pending requests regardless of instructor
+        $db = \Config\Database::connect();
+        $query = $db->query("
+            SELECT e.*, 
+                   u.name as student_name, 
+                   u.email as student_email, 
+                   COALESCE(c.title, CONCAT('Course #', e.course_id)) as course_title, 
+                   c.course_code, 
+                   COALESCE(e.school_year, c.school_year) as school_year, 
+                   COALESCE(e.semester, c.semester) as semester, 
+                   t.name as teacher_name,
+                   c.instructor_id,
+                   c.schedule_day,
+                   c.schedule_time_start,
+                   c.schedule_time_end
+            FROM enrollments e
+            LEFT JOIN users u ON u.id = e.user_id
+            LEFT JOIN courses c ON c.id = e.course_id
+            LEFT JOIN users t ON t.id = c.instructor_id
+            WHERE e.status = 'pending'
+            ORDER BY e.enrollment_date DESC
+        ");
+        
+        return $query->getResultArray();
     }
 }

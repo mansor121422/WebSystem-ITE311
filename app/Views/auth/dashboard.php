@@ -173,19 +173,14 @@
                     <a href="<?= base_url('admin/users') ?>" class="btn btn-primary">Manage Users</a>
                 </div>
                 <div class="dashboard-card">
-                    <h4>System Settings</h4>
-                    <p>Configure system settings and preferences</p>
-                    <a href="#" class="btn btn-primary">System Settings</a>
-                </div>
-                <div class="dashboard-card">
-                    <h4>Reports</h4>
-                    <p>Generate system reports and analytics</p>
-                    <a href="#" class="btn btn-primary">View Reports</a>
-                </div>
-                <div class="dashboard-card">
                     <h4>Course Management</h4>
                     <p>Oversee all courses and content</p>
-                    <a href="#" class="btn btn-primary">Manage All Courses</a>
+                    <a href="<?= base_url('courses') ?>" class="btn btn-primary">Manage All Courses</a>
+                </div>
+                <div class="dashboard-card">
+                    <h4>Course Materials</h4>
+                    <p>Manage course materials and uploads</p>
+                    <a href="<?= base_url('admin/dashboard') ?>#course-materials" class="btn btn-primary">Manage Materials</a>
                 </div>
             </div>
         </div>

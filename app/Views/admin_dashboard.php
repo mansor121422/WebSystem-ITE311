@@ -41,14 +41,20 @@
                         <a href="<?= base_url('admin/users') ?>" class="btn btn-primary">
                             <i class="fas fa-users"></i> User Management
                         </a>
+                        <a href="<?= base_url('courses') ?>" class="btn btn-primary">
+                            <i class="fas fa-book"></i> Course Management
+                        </a>
+                        <a href="#course-materials" class="btn btn-info">
+                            <i class="fas fa-file-alt"></i> Course Materials
+                        </a>
+                        <a href="<?= base_url('teacher/enrollment-requests') ?>" class="btn btn-warning">
+                            <i class="fas fa-user-check"></i> Enrollment Requests
+                        </a>
                         <a href="<?= base_url('announcements') ?>" class="btn btn-primary">
                             <i class="fas fa-bullhorn"></i> View Announcements
                         </a>
                         <a href="<?= base_url('announcements/create') ?>" class="btn btn-success">
                             <i class="fas fa-plus"></i> Create Announcement
-                        </a>
-                        <a href="<?= base_url('dashboard') ?>" class="btn btn-primary">
-                            <i class="fas fa-th-large"></i> Full Dashboard
                         </a>
                     </div>
                 </div>
@@ -56,30 +62,39 @@
         </div>
 
         <!-- Course Materials Management Section -->
-        <div class="courses-section">
+        <div id="course-materials" class="courses-section">
             <h3><i class="fas fa-book"></i> Course Materials Management</h3>
-            <div class="course-grid">
-                <?php
-                $courses = [
-                    ['id' => 1, 'title' => 'Introduction to Programming', 'color' => '#3498db'],
-                    ['id' => 2, 'title' => 'Web Development Basics', 'color' => '#2ecc71'],
-                    ['id' => 3, 'title' => 'Database Management', 'color' => '#e67e22'],
-                    ['id' => 4, 'title' => 'Data Structures & Algorithms', 'color' => '#9b59b6']
-                ];
-                foreach($courses as $course): ?>
-                    <div class="course-card" style="border-left-color: <?= $course['color'] ?>;">
-                        <h4><?= esc($course['title']) ?></h4>
-                        <div class="course-actions">
-                            <a href="<?= base_url('materials/view/' . $course['id']) ?>" class="btn btn-sm btn-primary">
-                                <i class="fas fa-eye"></i> View Materials
-                            </a>
-                            <a href="<?= base_url('materials/upload/' . $course['id']) ?>" class="btn btn-sm btn-success">
-                                <i class="fas fa-upload"></i> Upload
-                            </a>
+            <?php if(empty($courses)): ?>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No courses available. <a href="<?= base_url('courses') ?>">Add a course</a> to manage materials.
+                </div>
+            <?php else: ?>
+                <div class="course-grid">
+                    <?php
+                    // Color palette for course cards
+                    $colors = ['#3498db', '#2ecc71', '#e67e22', '#9b59b6', '#e74c3c', '#f39c12', '#1abc9c', '#34495e'];
+                    $colorIndex = 0;
+                    foreach($courses as $course): 
+                        $color = $colors[$colorIndex % count($colors)];
+                        $colorIndex++;
+                    ?>
+                        <div class="course-card" style="border-left-color: <?= $color ?>;">
+                            <h4><?= esc($course['title']) ?></h4>
+                            <?php if(!empty($course['course_code'])): ?>
+                                <p class="course-code"><small class="text-muted"><?= esc($course['course_code']) ?></small></p>
+                            <?php endif; ?>
+                            <div class="course-actions">
+                                <a href="<?= base_url('materials/view/' . $course['id']) ?>" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye"></i> View Materials
+                                </a>
+                                <a href="<?= base_url('materials/upload/' . $course['id']) ?>" class="btn btn-sm btn-success">
+                                    <i class="fas fa-upload"></i> Upload
+                                </a>
+                            </div>
                         </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
 
         <div class="dashboard-info" style="display: none;">
@@ -288,8 +303,12 @@
 
     .course-card h4 {
         color: #2c3e50;
-        margin-bottom: 1rem;
+        margin-bottom: 0.5rem;
         font-size: 1.1rem;
+    }
+
+    .course-card .course-code {
+        margin-bottom: 1rem;
     }
 
     .course-actions {

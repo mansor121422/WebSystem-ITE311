@@ -43,10 +43,34 @@
                                 <select class="form-select" id="course_id" name="course_id" required>
                                     <option value="">Choose a course...</option>
                                     <?php foreach($courses as $course): ?>
-                                        <option value="<?= $course['id'] ?>">
+                                        <option value="<?= $course['id'] ?>" 
+                                                data-school-year="<?= esc($course['school_year'] ?? '') ?>"
+                                                data-semester="<?= esc($course['semester'] ?? '') ?>">
                                             <?= esc($course['title']) ?>
+                                            <?php if(!empty($course['course_code'])): ?>
+                                                (<?= esc($course['course_code']) ?>)
+                                            <?php endif; ?>
                                         </option>
                                     <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="school_year" class="form-label">School Year</label>
+                                <input type="text" class="form-control" id="school_year" name="school_year" 
+                                       placeholder="e.g., 2024-2025" required>
+                                <small class="form-text text-muted">Enter the school year (e.g., 2024-2025)</small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="semester" class="form-label">Semester</label>
+                                <select class="form-select" id="semester" name="semester" required>
+                                    <option value="">Choose a semester...</option>
+                                    <option value="1st">1st Semester</option>
+                                    <option value="2nd">2nd Semester</option>
+                                    <option value="Summer">Summer</option>
                                 </select>
                             </div>
                         </div>
@@ -70,6 +94,20 @@
 
 <script>
 $(document).ready(function() {
+    // Auto-fill school year and semester when course is selected
+    $('#course_id').on('change', function() {
+        const selectedOption = $(this).find('option:selected');
+        const schoolYear = selectedOption.data('school-year');
+        const semester = selectedOption.data('semester');
+        
+        if (schoolYear) {
+            $('#school_year').val(schoolYear);
+        }
+        if (semester) {
+            $('#semester').val(semester);
+        }
+    });
+    
     $('#enrollForm').on('submit', function(e) {
         e.preventDefault();
         
@@ -84,9 +122,19 @@ $(document).ready(function() {
         const submitBtn = $(this).find('button[type="submit"]');
         submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Enrolling...');
 
+        const schoolYear = $('#school_year').val();
+        const semester = $('#semester').val();
+        
+        if (!schoolYear || !semester) {
+            alert('Please fill in both School Year and Semester.');
+            return;
+        }
+
         $.post('<?= base_url('teacher/enroll-student') ?>', {
             student_id: studentId,
             course_id: courseId,
+            school_year: schoolYear,
+            semester: semester,
             <?= csrf_token() ?>: '<?= csrf_hash() ?>'
         }, function(response) {
             if (response.success) {

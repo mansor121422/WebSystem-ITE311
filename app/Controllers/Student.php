@@ -7,6 +7,7 @@ use App\Models\AssignmentModel;
 use App\Models\AssignmentSubmissionModel;
 use App\Models\EnrollmentModel;
 use App\Models\NotificationModel;
+use App\Models\CourseModel;
 
 class Student extends BaseController
 {
@@ -14,6 +15,7 @@ class Student extends BaseController
     protected $submissionModel;
     protected $enrollmentModel;
     protected $notificationModel;
+    protected $courseModel;
 
     public function __construct()
     {
@@ -21,6 +23,7 @@ class Student extends BaseController
         $this->submissionModel = new AssignmentSubmissionModel();
         $this->enrollmentModel = new EnrollmentModel();
         $this->notificationModel = new NotificationModel();
+        $this->courseModel = new CourseModel();
     }
 
     /**
@@ -236,6 +239,116 @@ class Student extends BaseController
             }
         } catch (\Exception $e) {
             log_message('error', 'Accept enrollment error: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'An error occurred: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Request enrollment in a course (sends to teacher for approval)
+     */
+    public function requestEnrollment()
+    {
+        if (!session()->get('logged_in')) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'You must be logged in.'
+            ])->setStatusCode(401);
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'student') {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Only students can request enrollment.'
+            ])->setStatusCode(403);
+        }
+
+        $studentId = session('userID');
+        $courseId = $this->request->getPost('course_id');
+        $schoolYear = $this->request->getPost('school_year');
+        $semester = $this->request->getPost('semester');
+
+        // Validate input
+        if (empty($courseId) || empty($schoolYear) || empty($semester)) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Course ID, School Year, and Semester are required.'
+            ])->setStatusCode(400);
+        }
+
+        // Get course details
+        $course = $this->courseModel->find($courseId);
+        if (!$course) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Course not found.'
+            ])->setStatusCode(404);
+        }
+
+        // Validate course has same school year and semester
+        if ($course['school_year'] !== $schoolYear || $course['semester'] !== $semester) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Course school year and semester do not match.'
+            ])->setStatusCode(400);
+        }
+
+        // Check for duplicate enrollment
+        $duplicate = $this->enrollmentModel->checkDuplicateEnrollment($studentId, $courseId, $schoolYear, $semester);
+        if ($duplicate) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'You already have an active or pending enrollment for this course in this semester.'
+            ])->setStatusCode(400);
+        }
+
+        // Check for schedule conflicts
+        $scheduleConflict = $this->enrollmentModel->checkStudentScheduleConflict($studentId, $courseId, $schoolYear, $semester);
+        if ($scheduleConflict && isset($scheduleConflict['conflict']) && $scheduleConflict['conflict']) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Schedule conflict detected: ' . $scheduleConflict['message']
+            ])->setStatusCode(400);
+        }
+
+        // Create enrollment request
+        $enrollmentData = [
+            'user_id' => $studentId,
+            'course_id' => $courseId,
+            'enrollment_date' => date('Y-m-d H:i:s'),
+            'status' => 'pending',
+            'progress' => 0.00,
+            'school_year' => $schoolYear,
+            'semester' => $semester,
+            'requested_by' => 'student'
+        ];
+
+        try {
+            $result = $this->enrollmentModel->enrollUser($enrollmentData);
+            
+            if ($result) {
+                // Notify teacher about the enrollment request
+                $teacherId = $course['instructor_id'];
+                $studentName = session('name');
+                $courseTitle = $course['title'];
+                $message = "New enrollment request from {$studentName} for course '{$courseTitle}' ({$course['course_code']}).";
+                $this->notificationModel->createNotification($teacherId, $message);
+
+                return $this->response->setJSON([
+                    'success' => true,
+                    'message' => 'Enrollment request sent! Waiting for teacher approval.'
+                ]);
+            } else {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Failed to create enrollment request.'
+                ]);
+            }
+        } catch (\Exception $e) {
+            log_message('error', 'Enrollment request error: ' . $e->getMessage());
             return $this->response->setJSON([
                 'success' => false,
                 'message' => 'An error occurred: ' . $e->getMessage()

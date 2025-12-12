@@ -284,6 +284,37 @@
             margin-right: 0.5rem;
         }
 
+        /* Fix for vertical text display bug */
+        .student-dashboard .card-title,
+        .student-dashboard .card-text,
+        .student-dashboard h5,
+        .student-dashboard p {
+            writing-mode: horizontal-tb !important;
+            text-orientation: mixed !important;
+            word-break: normal !important;
+            white-space: normal !important;
+            overflow-wrap: break-word !important;
+            width: 100% !important;
+            display: block !important;
+        }
+
+        .student-dashboard .col-md-6,
+        .student-dashboard .col-lg-4 {
+            min-width: 0 !important;
+            width: 100% !important;
+        }
+
+        .student-dashboard .card {
+            width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        .student-dashboard .card-body {
+            width: 100% !important;
+            min-width: 0 !important;
+            word-wrap: break-word !important;
+        }
+
         .dashboard-cards {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -569,8 +600,13 @@
                     // Clear existing enrolled courses
                     enrolledContainer.find('.row').html('');
                     
-                    // Add each enrolled course
-                    response.enrollments.forEach(function(course) {
+                    // Filter to only show active enrollments (not pending)
+                    const activeEnrollments = response.enrollments.filter(function(course) {
+                        return course.status === 'active';
+                    });
+                    
+                    // Add each enrolled course (only active ones)
+                    activeEnrollments.forEach(function(course) {
                         enrolledCourseIds.push(course.id);
                         
                         const courseHtml = `
@@ -618,6 +654,22 @@
                     
                     // Update stats
                     updateStats();
+                } else {
+                    // Show message if there are pending enrollments
+                    const allEnrollments = response.enrollments || [];
+                    const pendingEnrollments = allEnrollments.filter(function(course) {
+                        return course.status === 'pending';
+                    });
+                    if (pendingEnrollments.length > 0) {
+                        const enrolledContainer = $('.student-dashboard .mb-5').first();
+                        if (enrolledContainer.find('.alert-info').length === 0) {
+                            enrolledContainer.prepend(`
+                                <div class="alert alert-info">
+                                    <i class="fas fa-clock"></i> You have ${pendingEnrollments.length} pending enrollment request(s). Please wait for teacher approval.
+                                </div>
+                            `);
+                        }
+                    }
                 }
             }, 'json').fail(function(xhr, status, error) {
                 console.error('Failed to load enrolled courses:', error);

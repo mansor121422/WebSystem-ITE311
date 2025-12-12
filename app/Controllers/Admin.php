@@ -4,14 +4,17 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\UserModel;
+use App\Models\CourseModel;
 
 class Admin extends BaseController
 {
     protected $userModel;
+    protected $courseModel;
 
     public function __construct()
     {
         $this->userModel = new UserModel();
+        $this->courseModel = new CourseModel();
     }
 
     /**
@@ -33,6 +36,9 @@ class Admin extends BaseController
             return redirect()->to('/dashboard');
         }
 
+        // Get all courses for materials management
+        $courses = $this->courseModel->orderBy('title', 'ASC')->findAll();
+        
         // Prepare data for view
         $data = [
             'title' => 'Admin Dashboard - LMS System',
@@ -40,7 +46,8 @@ class Admin extends BaseController
                 'name' => session('name'),
                 'email' => session('email'),
                 'role' => session('role')
-            ]
+            ],
+            'courses' => $courses
         ];
 
         // Load admin dashboard view
@@ -66,7 +73,7 @@ class Admin extends BaseController
         // Get role filter if any
         $roleFilter = $this->request->getGet('role');
         
-        // Get all users
+        // Get all active (non-deleted) users
         $query = $this->userModel->orderBy('created_at', 'DESC');
         
         // Filter users by role if provided
@@ -76,9 +83,20 @@ class Admin extends BaseController
         
         $users = $query->findAll();
 
+        // Get deleted users separately
+        $deletedUsersQuery = $this->userModel->getDeletedUsers();
+        if (!empty($roleFilter)) {
+            $deletedUsers = array_filter($deletedUsersQuery, function($user) use ($roleFilter) {
+                return $user['role'] === $roleFilter;
+            });
+        } else {
+            $deletedUsers = $deletedUsersQuery;
+        }
+
         $data = [
             'title' => 'User Management - Admin',
             'users' => $users,
+            'deletedUsers' => $deletedUsers,
             'roleFilter' => $roleFilter,
             'currentUserId' => session('userID')
         ];
@@ -331,7 +349,7 @@ class Admin extends BaseController
     }
 
     /**
-     * Delete user (soft delete by setting status)
+     * Delete user (soft delete)
      */
     public function deleteUser($id = null)
     {
@@ -364,8 +382,9 @@ class Admin extends BaseController
         }
 
         try {
+            // Soft delete - CodeIgniter will automatically set deleted_at
             if ($this->userModel->delete($id)) {
-                session()->setFlashdata('success', 'User deleted successfully!');
+                session()->setFlashdata('success', 'User deleted successfully! You can restore them later if needed.');
             } else {
                 session()->setFlashdata('error', 'Failed to delete user.');
             }
@@ -374,6 +393,534 @@ class Admin extends BaseController
         }
 
         return redirect()->to('/admin/users');
+    }
+
+    /**
+     * Restore deleted user
+     */
+    public function restoreUser($id = null)
+    {
+        // Check if user is logged in and is admin
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'admin') {
+            session()->setFlashdata('error', 'Access denied. Administrators only.');
+            return redirect()->to('/dashboard');
+        }
+
+        if (!$id) {
+            session()->setFlashdata('error', 'User ID is required.');
+            return redirect()->to('/admin/users');
+        }
+
+        // Get user with deleted records
+        $user = $this->userModel->withDeleted()->find($id);
+        if (!$user) {
+            session()->setFlashdata('error', 'User not found.');
+            return redirect()->to('/admin/users');
+        }
+
+        // Check if user is actually deleted
+        if (empty($user['deleted_at'])) {
+            session()->setFlashdata('error', 'User is not deleted.');
+            return redirect()->to('/admin/users');
+        }
+
+        try {
+            if ($this->userModel->restoreUser($id)) {
+                session()->setFlashdata('success', 'User restored successfully!');
+            } else {
+                session()->setFlashdata('error', 'Failed to restore user.');
+            }
+        } catch (\Exception $e) {
+            session()->setFlashdata('error', 'Error restoring user: ' . $e->getMessage());
+        }
+
+        return redirect()->to('/admin/users');
+    }
+
+    /**
+     * Create new course
+     */
+    public function createCourse()
+    {
+        // Check if user is logged in and is admin
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'admin') {
+            session()->setFlashdata('error', 'Access denied. Administrators only.');
+            return redirect()->to('/dashboard');
+        }
+
+        helper('form');
+
+        if ($this->request->getMethod() === 'POST') {
+            // Get form data
+            $title = $this->request->getPost('title');
+            $description = $this->request->getPost('description');
+            $instructorId = $this->request->getPost('instructor_id');
+            $courseCode = $this->request->getPost('course_code');
+            $schoolYear = $this->request->getPost('school_year');
+            $semester = $this->request->getPost('semester');
+            $scheduleDay = $this->request->getPost('schedule_day');
+            $scheduleTimeStart = $this->request->getPost('schedule_time_start');
+            $scheduleTimeEnd = $this->request->getPost('schedule_time_end');
+            $maxStudents = $this->request->getPost('max_students');
+
+            // Validate required fields
+            if (empty($title)) {
+                session()->setFlashdata('error', 'Course title is required.');
+                return redirect()->back()->withInput();
+            }
+
+            // Validate school year (required)
+            if (empty($schoolYear)) {
+                session()->setFlashdata('error', 'School year is required.');
+                return redirect()->back()->withInput();
+            }
+
+            // Validate semester (required)
+            if (empty($semester)) {
+                session()->setFlashdata('error', 'Semester is required.');
+                return redirect()->back()->withInput();
+            }
+
+            // Validate title length
+            if (strlen($title) < 3 || strlen($title) > 200) {
+                session()->setFlashdata('error', 'Course title must be between 3 and 200 characters.');
+                return redirect()->back()->withInput();
+            }
+
+            // Validate instructor if provided
+            if (!empty($instructorId)) {
+                $instructor = $this->userModel->find($instructorId);
+                if (!$instructor || $instructor['role'] !== 'teacher') {
+                    session()->setFlashdata('error', 'Invalid instructor selected.');
+                    return redirect()->back()->withInput();
+                }
+            }
+
+            // Validate semester value
+            if (!in_array($semester, ['1st', '2nd', 'Summer'])) {
+                session()->setFlashdata('error', 'Invalid semester selected.');
+                return redirect()->back()->withInput();
+            }
+
+            // Validate schedule day if provided
+            if (!empty($scheduleDay) && !in_array($scheduleDay, ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'])) {
+                session()->setFlashdata('error', 'Invalid schedule day selected.');
+                return redirect()->back()->withInput();
+            }
+
+            // Validate time format if provided
+            if (!empty($scheduleTimeStart) && !preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $scheduleTimeStart)) {
+                session()->setFlashdata('error', 'Invalid start time format. Use HH:MM format.');
+                return redirect()->back()->withInput();
+            }
+
+            if (!empty($scheduleTimeEnd) && !preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $scheduleTimeEnd)) {
+                session()->setFlashdata('error', 'Invalid end time format. Use HH:MM format.');
+                return redirect()->back()->withInput();
+            }
+
+            // Validate time range
+            if (!empty($scheduleTimeStart) && !empty($scheduleTimeEnd)) {
+                if (strtotime($scheduleTimeStart) >= strtotime($scheduleTimeEnd)) {
+                    session()->setFlashdata('error', 'End time must be after start time.');
+                    return redirect()->back()->withInput();
+                }
+            }
+
+            // Check for duplicate course (if course_code, school_year, and semester are provided)
+            if (!empty($courseCode) && !empty($schoolYear) && !empty($semester)) {
+                $duplicate = $this->courseModel->checkDuplicateCourse($courseCode, $title, $schoolYear, $semester);
+                if ($duplicate) {
+                    session()->setFlashdata('error', 'A course with the same code, title, school year, and semester already exists.');
+                    return redirect()->back()->withInput();
+                }
+            }
+
+            // Check for schedule conflicts (if schedule information is provided)
+            if (!empty($scheduleDay) && !empty($scheduleTimeStart) && !empty($scheduleTimeEnd) && !empty($schoolYear) && !empty($semester)) {
+                // Check each selected day for conflicts
+                $daysArray = explode(',', $scheduleDay);
+                foreach ($daysArray as $day) {
+                    $day = trim($day);
+                    $conflicts = $this->courseModel->checkScheduleConflict($day, $scheduleTimeStart, $scheduleTimeEnd, $schoolYear, $semester);
+                    if (!empty($conflicts)) {
+                        session()->setFlashdata('error', 'Schedule conflict detected on ' . $day . '. Another course has the same schedule for this school year and semester.');
+                        return redirect()->back()->withInput();
+                    }
+                }
+            }
+
+            // Prepare course data
+            $courseData = [
+                'title' => $title,
+                'description' => $description ?? null,
+                'instructor_id' => !empty($instructorId) ? $instructorId : null,
+                'course_code' => !empty($courseCode) ? $courseCode : null,
+                'school_year' => !empty($schoolYear) ? $schoolYear : null,
+                'semester' => !empty($semester) ? $semester : null,
+                'schedule_day' => !empty($scheduleDay) ? $scheduleDay : null,
+                'schedule_time_start' => !empty($scheduleTimeStart) ? $scheduleTimeStart : null,
+                'schedule_time_end' => !empty($scheduleTimeEnd) ? $scheduleTimeEnd : null,
+            ];
+
+            try {
+                $result = $this->courseModel->insert($courseData);
+                
+                if ($result) {
+                    session()->setFlashdata('success', 'Course created successfully!');
+                    return redirect()->to('/courses');
+                } else {
+                    session()->setFlashdata('error', 'Failed to create course.');
+                }
+            } catch (\Exception $e) {
+                session()->setFlashdata('error', 'Error creating course: ' . $e->getMessage());
+            }
+        }
+
+        return redirect()->to('/courses');
+    }
+
+    /**
+     * Edit course
+     */
+    public function editCourse($id = null)
+    {
+        // Check if user is logged in and is admin
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'admin') {
+            session()->setFlashdata('error', 'Access denied. Administrators only.');
+            return redirect()->to('/dashboard');
+        }
+
+        if (!$id) {
+            session()->setFlashdata('error', 'Course ID is required.');
+            return redirect()->to('/courses');
+        }
+
+        $course = $this->courseModel->find($id);
+        if (!$course) {
+            session()->setFlashdata('error', 'Course not found.');
+            return redirect()->to('/courses');
+        }
+
+        // Get all teachers for instructor selection
+        $teachers = $this->userModel->where('role', 'teacher')->findAll();
+
+        $data = [
+            'title' => 'Edit Course - Admin',
+            'course' => $course,
+            'teachers' => $teachers
+        ];
+
+        return view('admin/edit_course', $data);
+    }
+
+    /**
+     * Update course
+     */
+    public function updateCourse($id = null)
+    {
+        // Check if user is logged in and is admin
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'admin') {
+            session()->setFlashdata('error', 'Access denied. Administrators only.');
+            return redirect()->to('/dashboard');
+        }
+
+        if (!$id) {
+            session()->setFlashdata('error', 'Course ID is required.');
+            return redirect()->to('/courses');
+        }
+
+        $course = $this->courseModel->find($id);
+        if (!$course) {
+            session()->setFlashdata('error', 'Course not found.');
+            return redirect()->to('/courses');
+        }
+
+        helper('form');
+
+        if ($this->request->getMethod() === 'POST') {
+            // Get form data
+            $title = $this->request->getPost('title');
+            $description = $this->request->getPost('description');
+            $instructorId = $this->request->getPost('instructor_id');
+            $courseCode = $this->request->getPost('course_code');
+            $schoolYear = $this->request->getPost('school_year');
+            $semester = $this->request->getPost('semester');
+            $scheduleDays = $this->request->getPost('schedule_day'); // Array of days
+            $scheduleTimeStart = $this->request->getPost('schedule_time_start');
+            $scheduleTimeEnd = $this->request->getPost('schedule_time_end');
+            $maxStudents = $this->request->getPost('max_students');
+            
+            // Convert schedule days array to comma-separated string
+            $scheduleDay = null;
+            if (!empty($scheduleDays) && is_array($scheduleDays)) {
+                $scheduleDay = implode(',', array_filter($scheduleDays));
+            }
+
+            // Validate required fields
+            if (empty($title)) {
+                session()->setFlashdata('error', 'Course title is required.');
+                return redirect()->back()->withInput();
+            }
+
+            // Validate school year (required)
+            if (empty($schoolYear)) {
+                session()->setFlashdata('error', 'School year is required.');
+                return redirect()->back()->withInput();
+            }
+
+            // Validate semester (required)
+            if (empty($semester)) {
+                session()->setFlashdata('error', 'Semester is required.');
+                return redirect()->back()->withInput();
+            }
+
+            // Validate title length
+            if (strlen($title) < 3 || strlen($title) > 200) {
+                session()->setFlashdata('error', 'Course title must be between 3 and 200 characters.');
+                return redirect()->back()->withInput();
+            }
+
+            // Validate instructor if provided
+            if (!empty($instructorId)) {
+                $instructor = $this->userModel->find($instructorId);
+                if (!$instructor || $instructor['role'] !== 'teacher') {
+                    session()->setFlashdata('error', 'Invalid instructor selected.');
+                    return redirect()->back()->withInput();
+                }
+            }
+
+            // Validate semester value
+            if (!in_array($semester, ['1st', '2nd', 'Summer'])) {
+                session()->setFlashdata('error', 'Invalid semester selected.');
+                return redirect()->back()->withInput();
+            }
+
+            // Validate schedule days if provided
+            if (!empty($scheduleDays) && is_array($scheduleDays)) {
+                $validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                foreach ($scheduleDays as $day) {
+                    if (!in_array($day, $validDays)) {
+                        session()->setFlashdata('error', 'Invalid schedule day selected: ' . $day);
+                        return redirect()->back()->withInput();
+                    }
+                }
+            }
+
+            // Validate time format if provided
+            if (!empty($scheduleTimeStart) && !preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $scheduleTimeStart)) {
+                session()->setFlashdata('error', 'Invalid start time format. Use HH:MM format.');
+                return redirect()->back()->withInput();
+            }
+
+            if (!empty($scheduleTimeEnd) && !preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $scheduleTimeEnd)) {
+                session()->setFlashdata('error', 'Invalid end time format. Use HH:MM format.');
+                return redirect()->back()->withInput();
+            }
+
+            // Validate time range
+            if (!empty($scheduleTimeStart) && !empty($scheduleTimeEnd)) {
+                if (strtotime($scheduleTimeStart) >= strtotime($scheduleTimeEnd)) {
+                    session()->setFlashdata('error', 'End time must be after start time.');
+                    return redirect()->back()->withInput();
+                }
+            }
+
+            // Check for duplicate course (if course_code, school_year, and semester are provided)
+            if (!empty($courseCode) && !empty($schoolYear) && !empty($semester)) {
+                $duplicate = $this->courseModel->checkDuplicateCourse($courseCode, $title, $schoolYear, $semester, $id);
+                if ($duplicate) {
+                    session()->setFlashdata('error', 'A course with the same code, title, school year, and semester already exists.');
+                    return redirect()->back()->withInput();
+                }
+            }
+
+            // Check for schedule conflicts (if schedule information is provided)
+            if (!empty($scheduleDay) && !empty($scheduleTimeStart) && !empty($scheduleTimeEnd) && !empty($schoolYear) && !empty($semester)) {
+                // Check each selected day for conflicts
+                $daysArray = explode(',', $scheduleDay);
+                foreach ($daysArray as $day) {
+                    $day = trim($day);
+                    $conflicts = $this->courseModel->checkScheduleConflict($day, $scheduleTimeStart, $scheduleTimeEnd, $schoolYear, $semester, $id);
+                    if (!empty($conflicts)) {
+                        session()->setFlashdata('error', 'Schedule conflict detected on ' . $day . '. Another course has the same schedule for this school year and semester.');
+                        return redirect()->back()->withInput();
+                    }
+                }
+            }
+
+            // Validate max_students if provided
+            if (!empty($maxStudents)) {
+                $maxStudents = (int) $maxStudents;
+                if ($maxStudents < 1 || $maxStudents > 1000) {
+                    session()->setFlashdata('error', 'Maximum students must be between 1 and 1000.');
+                    return redirect()->back()->withInput();
+                }
+            }
+
+            // Prepare course data
+            $courseData = [
+                'title' => $title,
+                'description' => $description ?? null,
+                'instructor_id' => !empty($instructorId) ? $instructorId : null,
+                'course_code' => !empty($courseCode) ? $courseCode : null,
+                'school_year' => !empty($schoolYear) ? $schoolYear : null,
+                'semester' => !empty($semester) ? $semester : null,
+                'schedule_day' => !empty($scheduleDay) ? $scheduleDay : null,
+                'schedule_time_start' => !empty($scheduleTimeStart) ? $scheduleTimeStart : null,
+                'schedule_time_end' => !empty($scheduleTimeEnd) ? $scheduleTimeEnd : null,
+                'max_students' => !empty($maxStudents) ? $maxStudents : null,
+            ];
+
+            try {
+                if ($this->courseModel->update($id, $courseData)) {
+                    session()->setFlashdata('success', 'Course updated successfully!');
+                    return redirect()->to('/courses');
+                } else {
+                    session()->setFlashdata('error', 'Failed to update course.');
+                }
+            } catch (\Exception $e) {
+                session()->setFlashdata('error', 'Error updating course: ' . $e->getMessage());
+            }
+        }
+
+        // Get all teachers for instructor selection
+        $teachers = $this->userModel->where('role', 'teacher')->findAll();
+
+        $data = [
+            'title' => 'Edit Course - Admin',
+            'course' => $course,
+            'teachers' => $teachers
+        ];
+
+        return view('admin/edit_course', $data);
+    }
+
+    /**
+     * Delete course
+     */
+    public function deleteCourse($id = null)
+    {
+        // Check if user is logged in and is admin
+        if (!session()->get('logged_in')) {
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'You must be logged in to delete courses.'
+                ])->setStatusCode(401);
+            }
+            return redirect()->to('/login');
+        }
+
+        $userRole = strtolower(session('role') ?? '');
+        if ($userRole !== 'admin') {
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Access denied. Administrators only.'
+                ])->setStatusCode(403);
+            }
+            session()->setFlashdata('error', 'Access denied. Administrators only.');
+            return redirect()->to('/dashboard');
+        }
+
+        if (!$id) {
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Course ID is required.'
+                ])->setStatusCode(400);
+            }
+            session()->setFlashdata('error', 'Course ID is required.');
+            return redirect()->to('/courses');
+        }
+
+        $course = $this->courseModel->find($id);
+        if (!$course) {
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Course not found.'
+                ])->setStatusCode(404);
+            }
+            session()->setFlashdata('error', 'Course not found.');
+            return redirect()->to('/courses');
+        }
+
+        // Check if course has enrollments
+        $enrollmentModel = new \App\Models\EnrollmentModel();
+        $enrollments = $enrollmentModel->where('course_id', $id)->countAllResults();
+        
+        if ($enrollments > 0) {
+            $message = 'Cannot delete course. There are ' . $enrollments . ' enrollment(s) for this course.';
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => $message
+                ])->setStatusCode(400);
+            }
+            session()->setFlashdata('error', $message);
+            return redirect()->to('/courses');
+        }
+
+        try {
+            if ($this->courseModel->delete($id)) {
+                $message = 'Course deleted successfully!';
+                if ($this->request->isAJAX()) {
+                    return $this->response->setJSON([
+                        'success' => true,
+                        'message' => $message
+                    ]);
+                }
+                session()->setFlashdata('success', $message);
+            } else {
+                $message = 'Failed to delete course.';
+                if ($this->request->isAJAX()) {
+                    return $this->response->setJSON([
+                        'success' => false,
+                        'message' => $message
+                    ])->setStatusCode(500);
+                }
+                session()->setFlashdata('error', $message);
+            }
+        } catch (\Exception $e) {
+            $message = 'Error deleting course: ' . $e->getMessage();
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => $message
+                ])->setStatusCode(500);
+            }
+            session()->setFlashdata('error', $message);
+        }
+
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Unexpected error occurred.'
+            ])->setStatusCode(500);
+        }
+        return redirect()->to('/courses');
     }
 }
 
